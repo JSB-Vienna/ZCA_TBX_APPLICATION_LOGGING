@@ -85,13 +85,13 @@
     <item>
      <FUNCNAME>Z_CA_LOG_CB_UCOM</FUNCNAME>
      <SHORT_TEXT>Common object: Appl. log call back (user exit) for read</SHORT_TEXT>
-     <IMPORT>
-      <RSIMP>
+     <CHANGING>
+      <RSCHA>
        <PARAMETER>C_S_USER_COMMAND_DATA</PARAMETER>
        <REFERENCE>X</REFERENCE>
        <TYP>BAL_S_CBUC</TYP>
-      </RSIMP>
-     </IMPORT>
+      </RSCHA>
+     </CHANGING>
      <EXCEPTION>
       <RSEXC>
        <EXCEPTION>ERROR</EXCEPTION>
@@ -101,6 +101,7 @@
       <RSFDO>
        <PARAMETER>C_S_USER_COMMAND_DATA</PARAMETER>
        <KIND>P</KIND>
+       <STEXT>Application Log: &apos;USER_COMMAND&apos; callback data</STEXT>
       </RSFDO>
       <RSFDO>
        <PARAMETER>ERROR</PARAMETER>

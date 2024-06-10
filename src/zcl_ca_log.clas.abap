@@ -32,7 +32,9 @@ CLASS zcl_ca_log DEFINITION PUBLIC
       save                         FOR  zif_ca_log~save,
       set_additional_ref_object_id FOR  zif_ca_log~set_additional_ref_object_id,
       set_ext_number               FOR  zif_ca_log~set_ext_number,
+      set_program_name             FOR  zif_ca_log~set_program_name,
       set_source_position          FOR  zif_ca_log~set_source_position,
+      set_transaction_code         FOR  zif_ca_log~set_transaction_code,
       write                        FOR  zif_ca_log~write,
       mo_log_options               FOR  zif_ca_log~mo_log_options,
 *     Message types
@@ -172,13 +174,15 @@ CLASS zcl_ca_log DEFINITION PUBLIC
       "!
       "! @parameter is_lpor    | <p class="shorttext synchronized" lang="en">Business object key</p>
       "! @parameter iv_add_key | <p class="shorttext synchronized" lang="en">Additional key (for several logs to one business object)</p>
-      "! @parameter result     | <p class="shorttext synchronized" lang="en">Prepared filter for log number and log handle</p>
-      get_log_list_to_reference_obj
+      "! @parameter iv_msgty   | <p class="shorttext synchronized" lang="en">ABAP System Field: Message Type</p>
+      "! @parameter result     | <p class="shorttext synchronized" lang="en">Messages to the reference object</p>
+      get_messages_to_reference_obj
         IMPORTING
           is_lpor       TYPE sibflporb
           iv_add_key    TYPE zca_d_log_add_key OPTIONAL
+          iv_msgty      TYPE symsgty OPTIONAL
         RETURNING
-          VALUE(result) TYPE bal_s_lfil.
+          VALUE(result) TYPE aco_tt_bal_msg.
 
 *   i n s t a n c e   m e t h o d s
     METHODS:
@@ -298,6 +302,15 @@ CLASS zcl_ca_log DEFINITION PUBLIC
         RETURNING
           VALUE(rv_loghndl) TYPE balloghndl,
 
+      "! <p class="shorttext synchronized" lang="en">Change log header</p>
+      "!
+      "! @parameter iv_loghndl | <p class="shorttext synchronized" lang="en">Application Log: Log Handle</p>
+      "! @parameter is_log     | <p class="shorttext synchronized" lang="en">Application Log: Log header data</p>
+      intern_change
+        IMPORTING
+          iv_loghndl TYPE balloghndl
+          is_log     TYPE bal_s_log,
+
       "! <p class="shorttext synchronized" lang="en">Display log</p>
       "!
       "! @parameter io_parent | <p class="shorttext synchronized" lang="en">Parent container to display log in-place</p>
@@ -323,6 +336,18 @@ CLASS zcl_ca_log DEFINITION PUBLIC
         RETURNING
           VALUE(rv_lognr) TYPE balognr,
 
+      "! <p class="shorttext synchronized" lang="en">Get list of logs to reference object</p>
+      "!
+      "! @parameter is_lpor    | <p class="shorttext synchronized" lang="en">Business object key</p>
+      "! @parameter iv_add_key | <p class="shorttext synchronized" lang="en">Additional key (for several logs to one business object)</p>
+      "! @parameter result     | <p class="shorttext synchronized" lang="en">Prepared filter for log number and log handle</p>
+      intern_get_log_list_to_ref_obj
+        IMPORTING
+          is_lpor       TYPE sibflporb
+          iv_add_key    TYPE zca_d_log_add_key OPTIONAL
+        RETURNING
+          VALUE(result) TYPE bal_s_lfil,
+
       "! <p class="shorttext synchronized" lang="en">Get display profile</p>
       "!
       "! @parameter iv_title       | <p class="shorttext synchronized" lang="en">Application Log: Dynpro Title</p>
@@ -332,7 +357,6 @@ CLASS zcl_ca_log DEFINITION PUBLIC
       "! @parameter iv_show_all    | <p class="shorttext synchronized" lang="en">X = Show all messages</p>
       "! @parameter iv_opt_cwidth  | <p class="shorttext synchronized" lang="en">X = Optimize column width</p>
       "! @parameter iv_disp_srcpos | <p class="shorttext synchronized" lang="en">X = Display source code position of exception</p>
-      "! @parameter it_srcpos      | <p class="shorttext synchronized" lang="en">Common object: Application log - Source code position</p>
       "! @parameter rs_prof        | <p class="shorttext synchronized" lang="en">Application Log: Log Output Format Profile</p>
       intern_get_profile
         IMPORTING
@@ -343,7 +367,6 @@ CLASS zcl_ca_log DEFINITION PUBLIC
           iv_show_all    TYPE abap_bool DEFAULT abap_false
           iv_opt_cwidth  TYPE abap_bool DEFAULT abap_true
           iv_disp_srcpos TYPE abap_bool DEFAULT abap_false
-          it_srcpos      TYPE zca_tt_log_srcpos OPTIONAL
         RETURNING
           VALUE(rs_prof) TYPE bal_s_prof,
 
@@ -514,499 +537,7 @@ ENDCLASS.
 
 
 
-CLASS ZCL_CA_LOG IMPLEMENTATION.
-
-
-  METHOD intern_load_pos.
-    "-----------------------------------------------------------------*
-    "   Load messages and corresponding source position
-    "-----------------------------------------------------------------*
-    LOOP AT it_msgh REFERENCE INTO DATA(lr_msgh).
-      DATA(lv_lognr) = zcl_ca_log=>intern_get_lognr_from_handle( lr_msgh->log_handle ).
-
-      SELECT * APPENDING TABLE rt_srcpos
-               FROM zca_log_srcpos
-               WHERE lognr     EQ lv_lognr
-                 AND msgnumber EQ lr_msgh->msgnumber.
-    ENDLOOP.
-  ENDMETHOD.                    "intern_load_pos
-
-
-  METHOD zif_ca_log~set_source_position.
-    "-----------------------------------------------------------------*
-    "   Set source position into buffer
-    "-----------------------------------------------------------------*
-    "only if information exists
-    IF is_srcpos IS INITIAL.
-      RETURN.
-    ENDIF.
-
-    "add to global attribute
-    APPEND VALUE #( msgnumber    = is_msgh-msgnumber
-                    s_exc_srcpos = is_srcpos ) TO mt_srcpos.
-  ENDMETHOD.                    "zif_ca_log~set_source_position
-
-
-  METHOD intern_save.
-    "-----------------------------------------------------------------*
-    "   Save log on BAL DBs
-    "-----------------------------------------------------------------*
-    CALL FUNCTION 'BAL_DB_SAVE'
-      EXPORTING
-        i_in_update_task = iv_in_upd_task
-        i_t_log_handle   = it_logh
-      IMPORTING
-        e_new_lognumbers = rt_log_numbers
-      EXCEPTIONS
-        log_not_found    = 1
-        save_not_allowed = 2
-        numbering_error  = 3
-        OTHERS           = 4.
-    IF sy-subrc NE 0.
-      DATA(lx_error) = CAST zcx_ca_log(
-                          zcx_ca_intern=>create_exception(
-                                             iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
-                                             iv_function = 'BAL_DB_SAVE' ##no_text
-                                             iv_subrc    = sy-subrc ) ).
-      IF lx_error IS BOUND.
-        RAISE EXCEPTION lx_error.
-      ENDIF.
-    ENDIF.
-  ENDMETHOD.                    "intern_save
-
-
-  METHOD intern_save_srcpos.
-    "-----------------------------------------------------------------*
-    "   Save source position in DB table providing the log number
-    "-----------------------------------------------------------------*
-    rv_changed = abap_false.
-
-    IF lines( mt_srcpos ) LE 0        OR
-       ir_log_number      IS INITIAL.
-      RETURN.
-    ENDIF.
-
-    "Set log number into all entries
-    MODIFY mt_srcpos FROM VALUE #( lognr      = ir_log_number->lognumber
-                                   log_handle = ir_log_number->log_handle )
-                          TRANSPORTING lognr
-                          WHERE lognr NE ir_log_number->lognumber.
-
-    DELETE ADJACENT DUPLICATES FROM mt_srcpos COMPARING lognr msgnumber.
-
-    "Insert entries into DB table
-    INSERT zca_log_srcpos FROM TABLE mt_srcpos
-                          ACCEPTING DUPLICATE KEYS.
-    IF lines( mt_srcpos ) LE sy-dbcnt AND
-       sy-dbcnt           NE 0.
-      "If all of the entries were already in DB SY-DBCNT is 0 and nothing was changed
-      rv_changed = abap_true.
-    ENDIF.
-  ENDMETHOD.                    "intern_save_srcpos
-
-
-  METHOD display_for_reference_obj.
-    "-----------------------------------------------------------------*
-    "   Display all logs for reference object and key
-    "-----------------------------------------------------------------*
-    "Local data definitions
-    DATA:
-      lv_title TYPE baltitle.
-
-    "Set window title
-    IF iv_title IS NOT INITIAL.
-      lv_title = iv_title.
-    ELSE.
-      "TEXT-T01 = Log(s) to object
-      DATA(lv_obj_key) = zcl_ca_wf_utils=>prepare_object_key_for_ouput( is_lpor ).
-      lv_title = condense( |{ TEXT-t01 } { is_lpor-typeid } { lv_obj_key } { iv_add_key }| ).
-    ENDIF.
-
-    "Read log number for object type and key
-    DATA(ls_log_filter) = zcl_ca_log=>get_log_list_to_reference_obj( is_lpor    = is_lpor
-                                                                     iv_add_key = iv_add_key ).
-
-    "Display all logs
-    zcl_ca_log=>intern_search_n_display( is_log_filter  = ls_log_filter
-                                         io_parent      = io_parent
-                                         iv_title       = iv_title
-                                         iv_popup       = iv_popup
-                                         iv_opt_cwidth  = iv_opt_cwidth
-                                         iv_disp_srcpos = iv_disp_srcpos
-                                         is_profile     = is_profile ).
-  ENDMETHOD.                    "display_for_refobj
-
-
-  METHOD intern_has_user_developm_auth.
-    "-----------------------------------------------------------------*
-    "   Has user authority to display development objects
-    "-----------------------------------------------------------------*
-    result = abap_true.
-    AUTHORITY-CHECK OBJECT 'S_DEVELOP'
-                        ID 'DEVCLASS' DUMMY
-                        ID 'OBJTYPE'  DUMMY
-                        ID 'OBJNAME'  DUMMY
-                        ID 'P_GROUP'  DUMMY
-                        ID 'ACTVT'    FIELD '03'.   "Display
-    IF sy-subrc NE 0.
-      result = abap_false.
-    ENDIF.
-  ENDMETHOD.                    "intern_has_user_developm_auth
-
-
-  METHOD zif_ca_log~add_msg.
-    "-----------------------------------------------------------------*
-    "   Add single message using message variables
-    "-----------------------------------------------------------------*
-    add_msg_bal( is_srcpos = is_srcpos
-                 is_msg    = VALUE #( msgid     = iv_msgid
-                                      msgty     = iv_msgty
-                                      msgno     = iv_msgno
-                                      msgv1     = iv_msgv1
-                                      msgv2     = iv_msgv2
-                                      msgv3     = iv_msgv3
-                                      msgv4     = iv_msgv4
-                                      probclass = iv_probclass
-                                      detlevel  = iv_detlevel ) ).
-  ENDMETHOD.                    "zif_ca_log~add_msg
-
-
-  METHOD zif_ca_log~add_msg_bal.
-    "-----------------------------------------------------------------*
-    "   Add message from structure BAL_S_MSG
-    "-----------------------------------------------------------------*
-    "Is log open/created?
-    is_open( ).
-
-    DATA(ls_msg) = is_msg.
-
-    IF ls_msg-msgid IS INITIAL.
-      "use default message ID
-      ls_msg-msgid = mv_def_msgid.
-    ENDIF.
-
-    IF ls_msg-probclass IS INITIAL.
-      "use default message problem class
-      ls_msg-probclass = mv_def_probclass.
-    ENDIF.
-
-    "add message
-    DATA(ls_msgh) = zcl_ca_log=>intern_add_message( iv_loghndl = mv_loghndl
-                                                    is_msg     = ls_msg ).
-
-    "set error position
-    set_source_position( is_msgh   = ls_msgh
-                         is_srcpos = is_srcpos ).
-  ENDMETHOD.                    "zif_ca_log~add_msg_bal
-
-
-  METHOD zif_ca_log~add_msg_bal_tab.
-    "-----------------------------------------------------------------*
-    "   Add messages from tabletype ACO_TT_BAL_MSG
-    "-----------------------------------------------------------------*
-    LOOP AT it_msg ASSIGNING FIELD-SYMBOL(<ls_msg>).
-      add_msg_bal( <ls_msg> ).
-    ENDLOOP.
-  ENDMETHOD.                    "zif_ca_log~add_msg_bal_tab
-
-
-  METHOD zif_ca_log~add_msg_bapiret2.
-    "-----------------------------------------------------------------*
-    "   Add message from structure BAPIRET2
-    "-----------------------------------------------------------------*
-    IF is_bapiret2-message                 IS NOT INITIAL AND
-       message_exist(
-           iv_msgid = is_bapiret2-id
-           iv_msgno = is_bapiret2-number ) EQ abap_false.
-      add_msg( iv_msgty     = is_bapiret2-type
-                   iv_msgid     = 'S1'
-                   iv_msgno     = '897'
-                   iv_msgv1     = is_bapiret2-message(50)
-                   iv_msgv2     = is_bapiret2-message+50(50)
-                   iv_msgv3     = is_bapiret2-message+100(50)
-                   iv_msgv4     = is_bapiret2-message+150(50)
-                   iv_probclass = iv_probclass
-                   iv_detlevel  = iv_detlevel
-                   is_srcpos    = is_srcpos ).
-
-    ELSE.
-      add_msg( iv_msgty     = is_bapiret2-type
-                   iv_msgid     = is_bapiret2-id
-                   iv_msgno     = is_bapiret2-number
-                   iv_msgv1     = is_bapiret2-message_v1
-                   iv_msgv2     = is_bapiret2-message_v2
-                   iv_msgv3     = is_bapiret2-message_v3
-                   iv_msgv4     = is_bapiret2-message_v4
-                   iv_probclass = iv_probclass
-                   iv_detlevel  = iv_detlevel
-                   is_srcpos    = is_srcpos ).
-    ENDIF.
-  ENDMETHOD.                    "zif_ca_log~add_msg_bapiret2
-
-
-  METHOD zif_ca_log~add_msg_bapiret2_tab.
-    "-----------------------------------------------------------------*
-    "   Add messages from table type BAPIRET2_T
-    "-----------------------------------------------------------------*
-    LOOP AT it_bapiret2 REFERENCE INTO DATA(lr_bapiret2).
-      "add message
-      add_msg_bapiret2( is_bapiret2  = lr_bapiret2->*
-                        iv_probclass = iv_probclass
-                        iv_detlevel  = iv_detlevel
-                        is_srcpos    = is_srcpos ).
-    ENDLOOP.
-  ENDMETHOD.                    "zif_ca_log~add_msg_bapiret2_tab
-
-
-  METHOD zif_ca_log~add_msg_exc.
-    "-----------------------------------------------------------------*
-    "   Add message from exception class
-    "-----------------------------------------------------------------*
-    DATA(lx_prev) = ix_excep.
-    WHILE lx_prev IS BOUND.
-      "Get message details and source code position
-      DATA(ls_return) = zcx_ca_error=>get_msg_details_from_excep( lx_prev ).
-      "Set source code position
-      DATA(ls_srcpos) = zcx_ca_error=>get_exception_position( lx_prev ).
-
-      "Use message type if provided
-      CASE TYPE OF lx_prev.
-        WHEN TYPE zcx_ca_error INTO DATA(lx_catched).
-          ls_return-type = lx_catched->mv_msgty.
-        WHEN TYPE zcx_ca_intern INTO DATA(lx_intern).
-          ls_return-type = lx_intern->mv_msgty.
-      ENDCASE.
-
-      "Set problem class
-      IF iv_probclass IS NOT INITIAL.
-        DATA(lv_probclass) = iv_probclass.
-
-      ELSE.
-        IF ls_return-type IS INITIAL.
-          lv_probclass = mv_def_probclass.
-
-        ELSE.
-          CASE ls_return-type.
-            WHEN mo_log_options->msg_type-success.
-              lv_probclass = mo_log_options->problem_class-info.
-
-            WHEN mo_log_options->msg_type-info     OR
-                 mo_log_options->msg_type-warning.
-              lv_probclass = mo_log_options->problem_class-default.
-
-            WHEN mo_log_options->msg_type-error.
-              lv_probclass = mo_log_options->problem_class-important.
-
-            WHEN mo_log_options->msg_type-abort OR
-                 mo_log_options->msg_type-exit.
-              lv_probclass = mo_log_options->problem_class-very_important.
-          ENDCASE.
-        ENDIF.
-      ENDIF.
-
-      "Set missing message type depending on problem class
-      IF ls_return-type IS INITIAL.
-
-        CASE lv_probclass.
-          WHEN mo_log_options->problem_class-info       OR
-               mo_log_options->problem_class-undefined.
-            ls_return-type = mo_log_options->msg_type-success.
-
-          WHEN mo_log_options->problem_class-default.
-            ls_return-type = mo_log_options->msg_type-info.
-
-          WHEN mo_log_options->problem_class-important.
-            ls_return-type = mo_log_options->msg_type-error.
-
-          WHEN mo_log_options->problem_class-very_important.
-            ls_return-type = mo_log_options->msg_type-abort.
-        ENDCASE.
-      ENDIF.
-
-      "add message to log
-      add_msg( iv_msgid     = ls_return-id
-               iv_msgty     = ls_return-type
-               iv_msgno     = ls_return-number
-               iv_msgv1     = ls_return-message_v1
-               iv_msgv2     = ls_return-message_v2
-               iv_msgv3     = ls_return-message_v3
-               iv_msgv4     = ls_return-message_v4
-               iv_probclass = lv_probclass
-               iv_detlevel  = iv_detlevel
-               is_srcpos    = ls_srcpos ).
-
-      IF iv_all EQ abap_false.
-        EXIT.
-      ENDIF.
-
-      lx_prev = lx_prev->previous.
-    ENDWHILE.
-  ENDMETHOD.                    "zif_ca_log~add_msg_exc
-
-
-  METHOD zif_ca_log~add_msg_syst.
-    "-----------------------------------------------------------------*
-    "   Add message from structure SYST
-    "-----------------------------------------------------------------*
-    add_msg( iv_msgid     = sy-msgid
-             iv_msgty     = sy-msgty
-             iv_msgno     = sy-msgno
-             iv_msgv1     = sy-msgv1
-             iv_msgv2     = sy-msgv2
-             iv_msgv3     = sy-msgv3
-             iv_msgv4     = sy-msgv4
-             iv_probclass = iv_probclass
-             iv_detlevel  = iv_detlevel
-             is_srcpos    = is_srcpos  ).
-  ENDMETHOD.                    "zif_ca_log~add_msg_sy
-
-
-  METHOD zif_ca_log~close.
-    "-----------------------------------------------------------------*
-    "   Close log
-    "-----------------------------------------------------------------*
-    "log already closed?
-    IF ms_log IS INITIAL.
-      RETURN.
-    ENDIF.
-
-    CLEAR ms_log.
-
-    "refresh memory
-    zcl_ca_log=>intern_refresh( mv_loghndl ).
-  ENDMETHOD.                    "zif_ca_log~close
-
-
-  METHOD zif_ca_log~display.
-    "-----------------------------------------------------------------*
-    "   Display current messages
-    "-----------------------------------------------------------------*
-    "Local data definitions
-    DATA:
-      ls_prof              TYPE bal_s_prof.
-
-    IF is_profile IS not initial.
-      "use imported profile
-      ls_prof = is_profile.
-    ELSE.
-      "get display profile
-      ls_prof = get_profile( iv_title       = iv_title
-                             iv_popup       = iv_popup
-                             iv_use_grid    = iv_use_grid
-                             iv_disp_srcpos = iv_disp_srcpos
-                             iv_opt_cwidth  = iv_opt_cwidth
-                             iv_show_all    = iv_show_all ).
-    ENDIF.
-
-    "display logs
-    zcl_ca_log=>intern_display( io_parent = io_parent
-                                is_prof   = ls_prof
-                                it_logh   = VALUE #( ( mv_loghndl ) )
-                                it_srcpos = mt_srcpos ).
-  ENDMETHOD.                    "zif_ca_log~display
-
-
-  METHOD zif_ca_log~get_ext_number.
-    "-----------------------------------------------------------------*
-    "   Get display profile
-    "-----------------------------------------------------------------*
-    rv_extnumber = ms_log-extnumber.
-  ENDMETHOD.                    "get_ext_number
-
-
-  METHOD zif_ca_log~get_msg_count.
-    "-----------------------------------------------------------------*
-    "   Get number of all BAL messages depending on message type
-    "-----------------------------------------------------------------*
-    TRY.
-        rv_result = lines( get_msg_list_bapiret2( iv_msgty ) ).
-
-      CATCH zcx_ca_log.
-        rv_result = 0.
-    ENDTRY.
-  ENDMETHOD.                    "zif_ca_log~get_msg_count
-
-
-  METHOD zif_ca_log~write.
-    "-----------------------------------------------------------------*
-    "   Print messages as list without
-    "-----------------------------------------------------------------*
-    mo_log_options->is_message_type_valid( iv_msgty ).
-
-    LOOP AT get_msg_list_bapiret2( iv_msgty ) REFERENCE INTO DATA(lr_msg).
-      WRITE / lr_msg->message.
-    ENDLOOP.
-  ENDMETHOD.                    "zif_ca_log~write
-
-
-  METHOD zif_ca_log~get_msg_list_bal.
-    "-----------------------------------------------------------------*
-    "   Get all messages from BAL (table type ACO_TT_BAL_MSG)
-    "-----------------------------------------------------------------*
-    "Local data definitions
-    DATA:
-      lt_msgh TYPE bal_t_msgh.
-
-    DATA(lo_sel_options) = zcl_ca_c_sel_options=>get_instance( ).
-    CALL FUNCTION 'BAL_GLB_SEARCH_MSG'
-      EXPORTING
-        i_t_log_handle = VALUE bal_t_logh( ( mv_loghndl ) )
-        i_s_msg_filter = VALUE bal_s_mfil(
-                                  msgty = COND #(
-                                            WHEN iv_msgty IS INITIAL
-                                              THEN VALUE #( )  "initial filter
-                                              ELSE VALUE #( ( sign   = lo_sel_options->sign-incl
-                                                              option = lo_sel_options->option-eq
-                                                              low    = iv_msgty ) ) ) )
-      IMPORTING
-        e_t_msg_handle = lt_msgh
-      EXCEPTIONS
-        msg_not_found  = 1
-        OTHERS         = 2.
-    IF sy-subrc NE 0.
-      DATA(lx_error) =
-             CAST zcx_ca_log( zcx_ca_intern=>create_exception(
-                                        iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
-                                        iv_function  = 'BAL_GLB_SEARCH_MSG'
-                                        iv_subrc     = sy-subrc ) ) ##no_text.
-      IF lx_error IS BOUND.
-        RAISE EXCEPTION lx_error.
-      ENDIF.
-    ENDIF.
-
-    LOOP AT lt_msgh ASSIGNING FIELD-SYMBOL(<lv_msgh>).
-      APPEND zcl_ca_log=>intern_msg_read( <lv_msgh> ) TO rt_data.
-    ENDLOOP.
-  ENDMETHOD.                    "zif_ca_log~get_msg_list_bal
-
-
-  METHOD zif_ca_log~get_msg_list_bapiret2.
-    "-----------------------------------------------------------------*
-    "   Get messages from BAL and convert into BAPIRET2 format
-    "-----------------------------------------------------------------*
-    "Local data definitions
-    DATA:
-      ls_bapiret2 TYPE bapiret2.
-
-    DATA(lt_msg) = get_msg_list_bal( iv_msgty ).
-
-    LOOP AT lt_msg ASSIGNING FIELD-SYMBOL(<ls_msg>).
-      CALL FUNCTION 'BALW_BAPIRETURN_GET2'
-        EXPORTING
-          type   = <ls_msg>-msgty
-          cl     = <ls_msg>-msgid
-          number = <ls_msg>-msgno
-          par1   = <ls_msg>-msgv1
-          par2   = <ls_msg>-msgv2
-          par3   = <ls_msg>-msgv3
-          par4   = <ls_msg>-msgv4
-        IMPORTING
-          return = ls_bapiret2.
-
-      APPEND ls_bapiret2 TO rt_data.
-    ENDLOOP.
-  ENDMETHOD.                    "zif_ca_log~get_msg_list_bapiret2
-
+CLASS zcl_ca_log IMPLEMENTATION.
 
   METHOD constructor.
     "-----------------------------------------------------------------*
@@ -1136,6 +667,38 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
   ENDMETHOD.                    "display_for_lognr
 
 
+  METHOD display_for_reference_obj.
+    "-----------------------------------------------------------------*
+    "   Display all logs for reference object and key
+    "-----------------------------------------------------------------*
+    "Local data definitions
+    DATA:
+      lv_title TYPE baltitle.
+
+    "Set window title
+    IF iv_title IS NOT INITIAL.
+      lv_title = iv_title.
+    ELSE.
+      "TEXT-T01 = Log(s) to object
+      DATA(lv_obj_key) = zcl_ca_wf_utils=>prepare_object_key_for_ouput( is_lpor ).
+      lv_title = condense( |{ TEXT-t01 } { is_lpor-typeid } { lv_obj_key } { iv_add_key }| ).
+    ENDIF.
+
+    "Read log number for object type and key
+    DATA(ls_log_filter) = zcl_ca_log=>intern_get_log_list_to_ref_obj( is_lpor    = is_lpor
+                                                                      iv_add_key = iv_add_key ).
+
+    "Display all logs
+    zcl_ca_log=>intern_search_n_display( is_log_filter  = ls_log_filter
+                                         io_parent      = io_parent
+                                         iv_title       = iv_title
+                                         iv_popup       = iv_popup
+                                         iv_opt_cwidth  = iv_opt_cwidth
+                                         iv_disp_srcpos = iv_disp_srcpos
+                                         is_profile     = is_profile ).
+  ENDMETHOD.                    "display_for_refobj
+
+
   METHOD free_buffer.
     "-----------------------------------------------------------------*
     "   Release buffered instances
@@ -1242,53 +805,26 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
   ENDMETHOD.                    "get_instance_to_log_handle
 
 
-  METHOD get_log_list_to_reference_obj.
+  METHOD get_messages_to_reference_obj.
     "-----------------------------------------------------------------*
-    "   Get list of logs to reference object
+    "   Get messages to a reference object
     "-----------------------------------------------------------------*
-    "Local data definitions
-    DATA:
-      lt_obj_refs          TYPE zca_tt_log_objref.
+    DATA(lt_log_headers) = intern_search( is_lfil = intern_get_log_list_to_ref_obj( is_lpor    = is_lpor
+                                                                                    iv_add_key = iv_add_key ) ).
+    intern_load(
+            EXPORTING
+              it_lhdr = lt_log_headers
+            IMPORTING
+              et_msgh = DATA(lt_msg_handles) ).
 
-    IF iv_add_key IS INITIAL.
-      SELECT * INTO  TABLE lt_obj_refs
-               FROM  zca_log_objref
-               WHERE instid EQ is_lpor-instid
-                 AND typeid EQ is_lpor-typeid
-                 AND catid  EQ is_lpor-catid.
+    LOOP AT lt_msg_handles REFERENCE INTO DATA(lr_msg_handle).
+      APPEND zcl_ca_log=>intern_msg_read( lr_msg_handle->* ) TO result.
+    ENDLOOP.
 
-    ELSE.
-      DATA(lv_add_key) = iv_add_key.
-      IF strlen( lv_add_key ) LE 30.
-        lv_add_key = |%{ lv_add_key }%|.
-      ENDIF.
-      SELECT * INTO  TABLE lt_obj_refs
-               FROM  zca_log_objref
-               WHERE instid  EQ is_lpor-instid
-                 AND typeid  EQ is_lpor-typeid
-                 AND catid   EQ is_lpor-catid
-                 AND add_key LIKE iv_add_key.
+    IF iv_msgty IS NOT INITIAL.
+      DELETE result WHERE msgty NE iv_msgty.
     ENDIF.
-
-    IF sy-subrc NE 0.
-      DATA(lv_obj_key) = zcl_ca_wf_utils=>prepare_object_key_for_ouput( is_lpor ).
-      "No entry exists for & in Table &
-      RAISE EXCEPTION TYPE zcx_ca_log
-        EXPORTING
-          textid   = zcx_ca_log=>no_entry
-          mv_msgty = c_msgty_e
-          mv_msgv1 = CONV #( |{ is_lpor-catid } { is_lpor-typeid } { lv_obj_key } { iv_add_key }| )
-          mv_msgv2 = 'ZCA_LOG_OBJREF' ##no_text.
-    ENDIF.
-
-    DATA(lo_sel_opt) = zcl_ca_c_sel_options=>get_instance( ).
-    result-lognumber = VALUE #( FOR ls_obj_ref_logno IN lt_obj_refs
-                                              ( sign   = lo_sel_opt->sign-incl
-                                                option = lo_sel_opt->option-eq
-                                                low    = ls_obj_ref_logno-lognr ) ).
-    SORT result-lognumber.
-    DELETE ADJACENT DUPLICATES FROM result-lognumber COMPARING ALL FIELDS.
-  ENDMETHOD.                    "get_log_list_for_refobj
+  ENDMETHOD.                    "get_messages_to_reference_obj
 
 
   METHOD intern_add_message.
@@ -1307,11 +843,10 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
         log_is_full      = 3
         OTHERS           = 4.
     IF sy-subrc NE 0.
-      DATA(lx_error) = CAST zcx_ca_log(
-                          zcx_ca_intern=>create_exception(
-                                      iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
-                                      iv_function = 'BAL_LOG_MSG_ADD' ##no_text
-                                      iv_subrc    = sy-subrc ) ).
+      DATA(lx_error) = CAST zcx_ca_log( zcx_ca_intern=>create_exception(
+                                                                iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
+                                                                iv_function = 'BAL_LOG_MSG_ADD' ##no_text
+                                                                iv_subrc    = sy-subrc ) ).
       IF lx_error IS BOUND.
         RAISE EXCEPTION lx_error.
       ENDIF.
@@ -1333,16 +868,40 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
         log_header_inconsistent = 1
         OTHERS                  = 2.
     IF sy-subrc NE 0.
-      DATA(lx_error) = CAST zcx_ca_log(
-                          zcx_ca_intern=>create_exception(
-                                              iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
-                                              iv_function = 'BAL_LOG_CREATE' ##no_text
-                                              iv_subrc    = sy-subrc ) ).
+      DATA(lx_error) = CAST zcx_ca_log( zcx_ca_intern=>create_exception(
+                                                                iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
+                                                                iv_function = 'BAL_LOG_CREATE' ##no_text
+                                                                iv_subrc    = sy-subrc ) ).
       IF lx_error IS BOUND.
         RAISE EXCEPTION lx_error.
       ENDIF.
     ENDIF.
   ENDMETHOD.                    "intern_create
+
+
+  METHOD intern_change.
+    "-----------------------------------------------------------------*
+    "   Change log header
+    "-----------------------------------------------------------------*
+    "Provide BAL
+    CALL FUNCTION 'BAL_LOG_HDR_CHANGE'
+      EXPORTING
+        i_log_handle            = iv_loghndl
+        i_s_log                 = is_log
+      EXCEPTIONS
+        log_not_found           = 1
+        log_header_inconsistent = 2
+        OTHERS                  = 3.
+    IF sy-subrc NE 0.
+      DATA(lx_error) = CAST zcx_ca_log( zcx_ca_intern=>create_exception(
+                                                               iv_excp_cls    = zcx_ca_log=>c_zcx_ca_log
+                                                               iv_function    = 'BAL_LOG_HDR_CHANGE'
+                                                               iv_subrc       = sy-subrc ) )  ##no_text.
+      IF lx_error IS BOUND.
+        RAISE EXCEPTION lx_error.
+      ENDIF.
+    ENDIF.
+  ENDMETHOD.                    "zif_ca_log~set_additional_ref_object_id
 
 
   METHOD intern_display.
@@ -1373,11 +932,10 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
           internal_error       = 2
           OTHERS               = 3.
       IF sy-subrc NE 0.
-        lx_error = CAST zcx_ca_log(
-                       zcx_ca_intern=>create_exception(
-                                        iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
-                                        iv_function = 'BAL_CNTL_CREATE'
-                                        iv_subrc    = sy-subrc ) )  ##no_text.
+        lx_error = CAST zcx_ca_log( zcx_ca_intern=>create_exception(
+                                                            iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
+                                                            iv_function = 'BAL_CNTL_CREATE'
+                                                            iv_subrc    = sy-subrc ) )  ##no_text.
         IF lx_error IS BOUND.
           RAISE EXCEPTION lx_error.
         ENDIF.
@@ -1397,11 +955,10 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
           no_authority         = 4
           OTHERS               = 5.
       IF sy-subrc NE 0.
-        lx_error = CAST zcx_ca_log(
-                       zcx_ca_intern=>create_exception(
-                                        iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
-                                        iv_function = 'BAL_DSP_LOG_DISPLAY' ##no_text
-                                        iv_subrc    = sy-subrc ) ).
+        lx_error = CAST zcx_ca_log( zcx_ca_intern=>create_exception(
+                                                            iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
+                                                            iv_function = 'BAL_DSP_LOG_DISPLAY' ##no_text
+                                                            iv_subrc    = sy-subrc ) ).
         IF lx_error IS BOUND.
           RAISE EXCEPTION lx_error.
         ENDIF.
@@ -1419,11 +976,10 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
           no_authority         = 4
           OTHERS               = 5.
       IF sy-subrc NE 0.
-        lx_error = CAST zcx_ca_log(
-                       zcx_ca_intern=>create_exception(
-                                        iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
-                                        iv_function = 'BAL_DSP_LOG_DISPLAY' ##no_text
-                                        iv_subrc    = sy-subrc ) ).
+        lx_error = CAST zcx_ca_log( zcx_ca_intern=>create_exception(
+                                                            iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
+                                                            iv_function = 'BAL_DSP_LOG_DISPLAY' ##no_text
+                                                            iv_subrc    = sy-subrc ) ).
         IF lx_error IS BOUND.
           RAISE EXCEPTION lx_error.
         ENDIF.
@@ -1445,16 +1001,66 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
         log_not_found = 1
         OTHERS        = 2.
     IF sy-subrc NE 0.
-      DATA(lx_error) = CAST zcx_ca_log(
-                         zcx_ca_intern=>create_exception(
-                                            iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
-                                            iv_function = 'BAL_LOG_HDR_READ' ##no_text
-                                            iv_subrc    = sy-subrc ) ).
+      DATA(lx_error) = CAST zcx_ca_log( zcx_ca_intern=>create_exception(
+                                                                iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
+                                                                iv_function = 'BAL_LOG_HDR_READ' ##no_text
+                                                                iv_subrc    = sy-subrc ) ).
       IF lx_error IS BOUND.
         RAISE EXCEPTION lx_error.
       ENDIF.
     ENDIF.
   ENDMETHOD.                    "intern_get_lognr_from_handle
+
+
+  METHOD intern_get_log_list_to_ref_obj.
+    "-----------------------------------------------------------------*
+    "   Get list of logs to reference object
+    "-----------------------------------------------------------------*
+    "Local data definitions
+    DATA:
+      lt_obj_refs          TYPE zca_tt_log_objref.
+
+    IF iv_add_key IS INITIAL.
+      SELECT * INTO  TABLE lt_obj_refs
+               FROM  zca_log_objref
+               WHERE instid EQ is_lpor-instid
+                 AND typeid EQ is_lpor-typeid
+                 AND catid  EQ is_lpor-catid.
+
+    ELSE.
+      DATA(lv_add_key) = iv_add_key.
+      IF strlen( lv_add_key ) LE 30.
+        lv_add_key = |%{ lv_add_key }%|.
+      ELSE.
+        lv_add_key = |%{ lv_add_key(30) }%|.
+      ENDIF.
+      SELECT * INTO  TABLE lt_obj_refs
+               FROM  zca_log_objref
+               WHERE instid  EQ is_lpor-instid
+                 AND typeid  EQ is_lpor-typeid
+                 AND catid   EQ is_lpor-catid
+                 AND add_key LIKE lv_add_key.
+    ENDIF.
+
+    IF sy-subrc NE 0.
+      DATA(lv_obj_key) = zcl_ca_wf_utils=>prepare_object_key_for_ouput( is_lpor ).
+      "No entry exists for & in Table &
+      RAISE EXCEPTION TYPE zcx_ca_log
+        EXPORTING
+          textid   = zcx_ca_log=>no_entry
+          mv_msgty = c_msgty_e
+          mv_msgv1 = CONV #( |{ is_lpor-catid } { is_lpor-typeid } { lv_obj_key } { iv_add_key }| )
+          mv_msgv2 = 'ZCA_LOG_OBJREF' ##no_text.
+    ENDIF.
+
+    DATA(lo_sel_opt) = zcl_ca_c_sel_options=>get_instance( ).
+    result-lognumber = VALUE #( FOR ls_obj_ref_logno IN lt_obj_refs
+                                              ( sign   = lo_sel_opt->sign-incl
+                                                option = lo_sel_opt->option-eq
+                                                low    = ls_obj_ref_logno-lognr ) ).
+    SORT result-lognumber.
+    DELETE ADJACENT DUPLICATES FROM result-lognumber COMPARING ALL FIELDS.
+  ENDMETHOD.                    "intern_get_log_list_to_ref_obj
 
 
   METHOD intern_get_profile.
@@ -1498,8 +1104,7 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
     ENDIF.
 
     "Prepare settings for output of source code position
-    IF lv_disp_srcpos     EQ abap_true AND   "display error positions
-       lines( it_srcpos ) GT 0.              "exists an error position info?
+    IF lv_disp_srcpos EQ abap_true.
       "Enhance field catalog for ALV log display
       APPEND: VALUE #( ref_table  = c_fname_s_excep_srcpos
                        ref_field  = c_fname_class
@@ -1538,6 +1143,23 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
   ENDMETHOD.                    "intern_get_profile
 
 
+  METHOD intern_has_user_developm_auth.
+    "-----------------------------------------------------------------*
+    "   Has user authority to display development objects
+    "-----------------------------------------------------------------*
+    result = abap_true.
+    AUTHORITY-CHECK OBJECT 'S_DEVELOP'
+                        ID 'DEVCLASS' DUMMY
+                        ID 'OBJTYPE'  DUMMY
+                        ID 'OBJNAME'  DUMMY
+                        ID 'P_GROUP'  DUMMY
+                        ID 'ACTVT'    FIELD '03'.   "Display
+    IF sy-subrc NE 0.
+      result = abap_false.
+    ENDIF.
+  ENDMETHOD.                    "intern_has_user_developm_auth
+
+
   METHOD intern_load.
     "-----------------------------------------------------------------*
     "   Load messages to log numbers
@@ -1554,11 +1176,10 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
         log_already_loaded = 3
         OTHERS             = 4.
     IF sy-subrc NE 0.
-      DATA(lx_error) = CAST zcx_ca_log(
-                         zcx_ca_intern=>create_exception(
-                                            iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
-                                            iv_function = 'BAL_DB_LOAD' ##no_text
-                                            iv_subrc    = sy-subrc ) ).
+      DATA(lx_error) = CAST zcx_ca_log( zcx_ca_intern=>create_exception(
+                                                                iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
+                                                                iv_function = 'BAL_DB_LOAD' ##no_text
+                                                                iv_subrc    = sy-subrc ) ).
       IF lx_error IS BOUND.
         RAISE EXCEPTION lx_error.
       ENDIF.
@@ -1566,6 +1187,21 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
 
     et_srcpos = zcl_ca_log=>intern_load_pos( et_msgh ).
   ENDMETHOD.                    "intern_load
+
+
+  METHOD intern_load_pos.
+    "-----------------------------------------------------------------*
+    "   Load messages and corresponding source position
+    "-----------------------------------------------------------------*
+    LOOP AT it_msgh REFERENCE INTO DATA(lr_msgh).
+      DATA(lv_lognr) = zcl_ca_log=>intern_get_lognr_from_handle( lr_msgh->log_handle ).
+
+      SELECT * APPENDING TABLE rt_srcpos
+               FROM zca_log_srcpos
+               WHERE lognr     EQ lv_lognr
+                 AND msgnumber EQ lr_msgh->msgnumber.
+    ENDLOOP.
+  ENDMETHOD.                    "intern_load_pos
 
 
   METHOD intern_msg_read.
@@ -1582,11 +1218,10 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
         msg_not_found  = 2
         OTHERS         = 3.
     IF sy-subrc NE 0.
-      DATA(lx_error) = CAST zcx_ca_log(
-                          zcx_ca_intern=>create_exception(
-                                             iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
-                                             iv_function = 'BAL_LOG_MSG_READ' ##no_text
-                                             iv_subrc    = sy-subrc ) ).
+      DATA(lx_error) = CAST zcx_ca_log( zcx_ca_intern=>create_exception(
+                                                                 iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
+                                                                 iv_function = 'BAL_LOG_MSG_READ' ##no_text
+                                                                 iv_subrc    = sy-subrc ) ).
       IF lx_error IS BOUND.
         RAISE EXCEPTION lx_error.
       ENDIF.
@@ -1605,16 +1240,42 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
         log_not_found = 1
         OTHERS        = 2.
     IF sy-subrc NE 0.
-      DATA(lx_error) = CAST zcx_ca_log(
-                          zcx_ca_intern=>create_exception(
-                                            iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
-                                            iv_function = 'BAL_LOG_REFRESH' ##no_text
-                                            iv_subrc    = sy-subrc ) ).
+      DATA(lx_error) = CAST zcx_ca_log( zcx_ca_intern=>create_exception(
+                                                                iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
+                                                                iv_function = 'BAL_LOG_REFRESH' ##no_text
+                                                                iv_subrc    = sy-subrc ) ).
       IF lx_error IS BOUND.
         RAISE EXCEPTION lx_error.
       ENDIF.
     ENDIF.
   ENDMETHOD.                    "intern_refresh
+
+
+  METHOD intern_save.
+    "-----------------------------------------------------------------*
+    "   Save log on BAL DBs
+    "-----------------------------------------------------------------*
+    CALL FUNCTION 'BAL_DB_SAVE'
+      EXPORTING
+        i_in_update_task = iv_in_upd_task
+        i_t_log_handle   = it_logh
+      IMPORTING
+        e_new_lognumbers = rt_log_numbers
+      EXCEPTIONS
+        log_not_found    = 1
+        save_not_allowed = 2
+        numbering_error  = 3
+        OTHERS           = 4.
+    IF sy-subrc NE 0.
+      DATA(lx_error) = CAST zcx_ca_log( zcx_ca_intern=>create_exception(
+                                                               iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
+                                                               iv_function = 'BAL_DB_SAVE' ##no_text
+                                                               iv_subrc    = sy-subrc ) ).
+      IF lx_error IS BOUND.
+        RAISE EXCEPTION lx_error.
+      ENDIF.
+    ENDIF.
+  ENDMETHOD.                    "intern_save
 
 
   METHOD intern_save_logref.
@@ -1623,15 +1284,15 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
     "-----------------------------------------------------------------*
     rv_changed = abap_false.
 
-    IF mt_objref IS INITIAL OR
-       ir_log_number  IS INITIAL.
+    IF mt_objref     IS INITIAL OR
+       ir_log_number IS INITIAL.
       RETURN.
     ENDIF.
 
     "Set log number into all entries
     MODIFY mt_objref FROM VALUE #( lognr      = ir_log_number->lognumber
                                    log_handle = ir_log_number->log_handle )
-                     TRANSPORTING lognr
+                     TRANSPORTING lognr  log_handle
                      WHERE lognr NE ir_log_number->lognumber.
 
     "Insert entries into DB table
@@ -1643,6 +1304,36 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
       rv_changed = abap_true.
     ENDIF.
   ENDMETHOD.                    "intern_save_logref
+
+
+  METHOD intern_save_srcpos.
+    "-----------------------------------------------------------------*
+    "   Save source position in DB table providing the log number
+    "-----------------------------------------------------------------*
+    rv_changed = abap_false.
+
+    IF lines( mt_srcpos ) LE 0        OR
+       ir_log_number      IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    "Set log number into all entries
+    MODIFY mt_srcpos FROM VALUE #( lognr      = ir_log_number->lognumber
+                                   log_handle = ir_log_number->log_handle )
+                          TRANSPORTING lognr  log_handle
+                          WHERE lognr NE ir_log_number->lognumber.
+
+    DELETE ADJACENT DUPLICATES FROM mt_srcpos COMPARING lognr msgnumber.
+
+    "Insert entries into DB table
+    INSERT zca_log_srcpos FROM TABLE mt_srcpos
+                          ACCEPTING DUPLICATE KEYS.
+    IF lines( mt_srcpos ) LE sy-dbcnt AND
+       sy-dbcnt           NE 0.
+      "If all of the entries were already in DB SY-DBCNT is 0 and nothing was changed
+      rv_changed = abap_true.
+    ENDIF.
+  ENDMETHOD.                    "intern_save_srcpos
 
 
   METHOD intern_search.
@@ -1659,11 +1350,10 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
         no_filter_criteria = 2
         OTHERS             = 3.
     IF sy-subrc NE 0.
-      DATA(lx_error) = CAST zcx_ca_log(
-                          zcx_ca_intern=>create_exception(
-                                             iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
-                                             iv_function = 'BAL_DB_SEARCH' ##no_text
-                                             iv_subrc    = sy-subrc ) ).
+      DATA(lx_error) = CAST zcx_ca_log( zcx_ca_intern=>create_exception(
+                                                                 iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
+                                                                 iv_function = 'BAL_DB_SEARCH' ##no_text
+                                                                 iv_subrc    = sy-subrc ) ).
       IF lx_error IS BOUND.
         RAISE EXCEPTION lx_error.
       ENDIF.
@@ -1710,8 +1400,7 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
                                                                 ELSE abap_false )
                                      iv_opt_cwidth  = iv_opt_cwidth
                                      iv_report      = ls_lhdr-alprog
-                                     iv_disp_srcpos = iv_disp_srcpos
-                                     it_srcpos      = lt_srcpos ).
+                                     iv_disp_srcpos = iv_disp_srcpos ).
     ENDIF.
 
     "Display logs
@@ -1767,6 +1456,348 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
   ENDMETHOD.                    "message_exist
 
 
+  METHOD zif_ca_log~add_msg.
+    "-----------------------------------------------------------------*
+    "   Add single message using message variables
+    "-----------------------------------------------------------------*
+    add_msg_bal( is_srcpos = is_srcpos
+                 is_msg    = VALUE #( msgid     = iv_msgid
+                                      msgty     = iv_msgty
+                                      msgno     = iv_msgno
+                                      msgv1     = iv_msgv1
+                                      msgv2     = iv_msgv2
+                                      msgv3     = iv_msgv3
+                                      msgv4     = iv_msgv4
+                                      probclass = iv_probclass
+                                      detlevel  = iv_detlevel ) ).
+  ENDMETHOD.                    "zif_ca_log~add_msg
+
+
+  METHOD zif_ca_log~add_msg_bal.
+    "-----------------------------------------------------------------*
+    "   Add message from structure BAL_S_MSG
+    "-----------------------------------------------------------------*
+    "Is log open/created?
+    is_open( ).
+
+    DATA(ls_msg) = is_msg.
+
+    IF ls_msg-msgid IS INITIAL.
+      "use default message ID
+      ls_msg-msgid = mv_def_msgid.
+    ENDIF.
+
+    IF ls_msg-probclass IS INITIAL.
+      "use default message problem class
+      ls_msg-probclass = mv_def_probclass.
+    ENDIF.
+
+    "add message
+    DATA(ls_msgh) = zcl_ca_log=>intern_add_message( iv_loghndl = mv_loghndl
+                                                    is_msg     = ls_msg ).
+
+    "set error position
+    set_source_position( is_msgh   = ls_msgh
+                         is_srcpos = is_srcpos ).
+  ENDMETHOD.                    "zif_ca_log~add_msg_bal
+
+
+  METHOD zif_ca_log~add_msg_bal_tab.
+    "-----------------------------------------------------------------*
+    "   Add messages from tabletype ACO_TT_BAL_MSG
+    "-----------------------------------------------------------------*
+    LOOP AT it_msg ASSIGNING FIELD-SYMBOL(<ls_msg>).
+      add_msg_bal( <ls_msg> ).
+    ENDLOOP.
+  ENDMETHOD.                    "zif_ca_log~add_msg_bal_tab
+
+
+  METHOD zif_ca_log~add_msg_bapiret2.
+    "-----------------------------------------------------------------*
+    "   Add message from structure BAPIRET2
+    "-----------------------------------------------------------------*
+    IF is_bapiret2-message                 IS NOT INITIAL AND
+       message_exist(
+           iv_msgid = is_bapiret2-id
+           iv_msgno = is_bapiret2-number ) EQ abap_false.
+      add_msg( iv_msgty     = is_bapiret2-type
+               iv_msgid     = 'S1'
+               iv_msgno     = '897'
+               iv_msgv1     = is_bapiret2-message(50)
+               iv_msgv2     = is_bapiret2-message+50(50)
+               iv_msgv3     = is_bapiret2-message+100(50)
+               iv_msgv4     = is_bapiret2-message+150(50)
+               iv_probclass = iv_probclass
+               iv_detlevel  = iv_detlevel
+               is_srcpos    = is_srcpos ).
+
+    ELSE.
+      add_msg( iv_msgty     = is_bapiret2-type
+               iv_msgid     = is_bapiret2-id
+               iv_msgno     = is_bapiret2-number
+               iv_msgv1     = is_bapiret2-message_v1
+               iv_msgv2     = is_bapiret2-message_v2
+               iv_msgv3     = is_bapiret2-message_v3
+               iv_msgv4     = is_bapiret2-message_v4
+               iv_probclass = iv_probclass
+               iv_detlevel  = iv_detlevel
+               is_srcpos    = is_srcpos ).
+    ENDIF.
+  ENDMETHOD.                    "zif_ca_log~add_msg_bapiret2
+
+
+  METHOD zif_ca_log~add_msg_bapiret2_tab.
+    "-----------------------------------------------------------------*
+    "   Add messages from table type BAPIRET2_T
+    "-----------------------------------------------------------------*
+    LOOP AT it_bapiret2 REFERENCE INTO DATA(lr_bapiret2).
+      "add message
+      add_msg_bapiret2( is_bapiret2  = lr_bapiret2->*
+                        iv_probclass = iv_probclass
+                        iv_detlevel  = iv_detlevel
+                        is_srcpos    = is_srcpos ).
+    ENDLOOP.
+  ENDMETHOD.                    "zif_ca_log~add_msg_bapiret2_tab
+
+
+  METHOD zif_ca_log~add_msg_exc.
+    "-----------------------------------------------------------------*
+    "   Add message from exception class
+    "-----------------------------------------------------------------*
+    DATA(lx_prev) = ix_excep.
+    WHILE lx_prev IS BOUND.
+      "Get message details and source code position
+      DATA(ls_return) = zcx_ca_error=>get_msg_details_from_excep( lx_prev ).
+      "Set source code position
+      DATA(ls_srcpos) = zcx_ca_error=>get_exception_position( lx_prev ).
+
+      "Use message type if provided
+      CASE TYPE OF lx_prev.
+        WHEN TYPE zcx_ca_error INTO DATA(lx_catched).
+          ls_return-type = lx_catched->mv_msgty.
+        WHEN TYPE zcx_ca_intern INTO DATA(lx_intern).
+          ls_return-type = lx_intern->mv_msgty.
+      ENDCASE.
+
+      "Set problem class
+      IF iv_probclass IS NOT INITIAL.
+        DATA(lv_probclass) = iv_probclass.
+
+      ELSE.
+        IF ls_return-type IS INITIAL.
+          lv_probclass = mv_def_probclass.
+
+        ELSE.
+          CASE ls_return-type.
+            WHEN mo_log_options->msg_type-success.
+              lv_probclass = mo_log_options->problem_class-info.
+
+            WHEN mo_log_options->msg_type-info     OR
+                 mo_log_options->msg_type-warning.
+              lv_probclass = mo_log_options->problem_class-default.
+
+            WHEN mo_log_options->msg_type-error.
+              lv_probclass = mo_log_options->problem_class-important.
+
+            WHEN mo_log_options->msg_type-abort OR
+                 mo_log_options->msg_type-exit.
+              lv_probclass = mo_log_options->problem_class-very_important.
+          ENDCASE.
+        ENDIF.
+      ENDIF.
+
+      "Set missing message type depending on problem class
+      IF ls_return-type IS INITIAL.
+        CASE lv_probclass.
+          WHEN mo_log_options->problem_class-info       OR
+               mo_log_options->problem_class-undefined.
+            ls_return-type = mo_log_options->msg_type-success.
+
+          WHEN mo_log_options->problem_class-default.
+            ls_return-type = mo_log_options->msg_type-info.
+
+          WHEN mo_log_options->problem_class-important.
+            ls_return-type = mo_log_options->msg_type-error.
+
+          WHEN mo_log_options->problem_class-very_important.
+            ls_return-type = mo_log_options->msg_type-abort.
+        ENDCASE.
+      ENDIF.
+
+      "add message to log
+      add_msg( iv_msgid     = ls_return-id
+               iv_msgty     = ls_return-type
+               iv_msgno     = ls_return-number
+               iv_msgv1     = ls_return-message_v1
+               iv_msgv2     = ls_return-message_v2
+               iv_msgv3     = ls_return-message_v3
+               iv_msgv4     = ls_return-message_v4
+               iv_probclass = lv_probclass
+               iv_detlevel  = iv_detlevel
+               is_srcpos    = ls_srcpos ).
+
+      IF iv_all EQ abap_false.
+        EXIT.
+      ENDIF.
+
+      lx_prev = lx_prev->previous.
+    ENDWHILE.
+  ENDMETHOD.                    "zif_ca_log~add_msg_exc
+
+
+  METHOD zif_ca_log~add_msg_syst.
+    "-----------------------------------------------------------------*
+    "   Add message from structure SYST
+    "-----------------------------------------------------------------*
+    add_msg( iv_msgid     = sy-msgid
+             iv_msgty     = sy-msgty
+             iv_msgno     = sy-msgno
+             iv_msgv1     = sy-msgv1
+             iv_msgv2     = sy-msgv2
+             iv_msgv3     = sy-msgv3
+             iv_msgv4     = sy-msgv4
+             iv_probclass = iv_probclass
+             iv_detlevel  = iv_detlevel
+             is_srcpos    = is_srcpos  ).
+  ENDMETHOD.                    "zif_ca_log~add_msg_sy
+
+
+  METHOD zif_ca_log~close.
+    "-----------------------------------------------------------------*
+    "   Close log
+    "-----------------------------------------------------------------*
+    "log already closed?
+    IF ms_log IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    CLEAR ms_log.
+
+    "refresh memory
+    zcl_ca_log=>intern_refresh( mv_loghndl ).
+  ENDMETHOD.                    "zif_ca_log~close
+
+
+  METHOD zif_ca_log~display.
+    "-----------------------------------------------------------------*
+    "   Display current messages
+    "-----------------------------------------------------------------*
+    "Local data definitions
+    DATA:
+      ls_prof              TYPE bal_s_prof.
+
+    IF is_profile IS NOT INITIAL.
+      "use imported profile
+      ls_prof = is_profile.
+
+    ELSE.
+      "get display profile
+      ls_prof = get_profile( iv_title       = iv_title
+                             iv_popup       = iv_popup
+                             iv_use_grid    = iv_use_grid
+                             iv_disp_srcpos = iv_disp_srcpos
+                             iv_opt_cwidth  = iv_opt_cwidth
+                             iv_show_all    = iv_show_all ).
+    ENDIF.
+
+    "display logs
+    zcl_ca_log=>intern_display( io_parent = io_parent
+                                is_prof   = ls_prof
+                                it_logh   = VALUE #( ( mv_loghndl ) )
+                                it_srcpos = mt_srcpos ).
+  ENDMETHOD.                    "zif_ca_log~display
+
+
+  METHOD zif_ca_log~get_ext_number.
+    "-----------------------------------------------------------------*
+    "   Get display profile
+    "-----------------------------------------------------------------*
+    rv_extnumber = ms_log-extnumber.
+  ENDMETHOD.                    "get_ext_number
+
+
+  METHOD zif_ca_log~get_msg_count.
+    "-----------------------------------------------------------------*
+    "   Get number of all BAL messages depending on message type
+    "-----------------------------------------------------------------*
+    TRY.
+        rv_result = lines( get_msg_list_bapiret2( iv_msgty ) ).
+
+      CATCH zcx_ca_log.
+        rv_result = 0.
+    ENDTRY.
+  ENDMETHOD.                    "zif_ca_log~get_msg_count
+
+
+  METHOD zif_ca_log~get_msg_list_bal.
+    "-----------------------------------------------------------------*
+    "   Get all messages from BAL (table type ACO_TT_BAL_MSG)
+    "-----------------------------------------------------------------*
+    "Local data definitions
+    DATA:
+      lt_msgh TYPE bal_t_msgh.
+
+    DATA(lo_sel_options) = zcl_ca_c_sel_options=>get_instance( ).
+    CALL FUNCTION 'BAL_GLB_SEARCH_MSG'
+      EXPORTING
+        i_t_log_handle = VALUE bal_t_logh( ( mv_loghndl ) )
+        i_s_msg_filter = VALUE bal_s_mfil(
+                                  msgty = COND #(
+                                            WHEN iv_msgty IS INITIAL
+                                              THEN VALUE #( )  "initial filter
+                                              ELSE VALUE #( ( sign   = lo_sel_options->sign-incl
+                                                              option = lo_sel_options->option-eq
+                                                              low    = iv_msgty ) ) ) )
+      IMPORTING
+        e_t_msg_handle = lt_msgh
+      EXCEPTIONS
+        msg_not_found  = 1
+        OTHERS         = 2.
+    IF sy-subrc NE 0.
+      DATA(lx_error) =
+             CAST zcx_ca_log( zcx_ca_intern=>create_exception(
+                                        iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
+                                        iv_function  = 'BAL_GLB_SEARCH_MSG'
+                                        iv_subrc     = sy-subrc ) ) ##no_text.
+      IF lx_error IS BOUND.
+        RAISE EXCEPTION lx_error.
+      ENDIF.
+    ENDIF.
+
+    LOOP AT lt_msgh ASSIGNING FIELD-SYMBOL(<lv_msgh>).
+      APPEND zcl_ca_log=>intern_msg_read( <lv_msgh> ) TO rt_data.
+    ENDLOOP.
+  ENDMETHOD.                    "zif_ca_log~get_msg_list_bal
+
+
+  METHOD zif_ca_log~get_msg_list_bapiret2.
+    "-----------------------------------------------------------------*
+    "   Get messages from BAL and convert into BAPIRET2 format
+    "-----------------------------------------------------------------*
+    "Local data definitions
+    DATA:
+      ls_bapiret2 TYPE bapiret2.
+
+    DATA(lt_msg) = get_msg_list_bal( iv_msgty ).
+
+    LOOP AT lt_msg ASSIGNING FIELD-SYMBOL(<ls_msg>).
+      CALL FUNCTION 'BALW_BAPIRETURN_GET2'
+        EXPORTING
+          type   = <ls_msg>-msgty
+          cl     = <ls_msg>-msgid
+          number = <ls_msg>-msgno
+          par1   = <ls_msg>-msgv1
+          par2   = <ls_msg>-msgv2
+          par3   = <ls_msg>-msgv3
+          par4   = <ls_msg>-msgv4
+        IMPORTING
+          return = ls_bapiret2.
+
+      APPEND ls_bapiret2 TO rt_data.
+    ENDLOOP.
+  ENDMETHOD.                    "zif_ca_log~get_msg_list_bapiret2
+
+
   METHOD zif_ca_log~get_profile.
     "-----------------------------------------------------------------*
     "   Get display profile
@@ -1774,11 +1805,10 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
     result = zcl_ca_log=>intern_get_profile( iv_title       = iv_title
                                              iv_popup       = iv_popup
                                              iv_use_grid    = iv_use_grid
-                                             iv_report      = ms_log-alprog
+                                             iv_report      = iv_report
                                              iv_disp_srcpos = iv_disp_srcpos
                                              iv_show_all    = iv_show_all
-                                             iv_opt_cwidth  = iv_opt_cwidth
-                                             it_srcpos      = mt_srcpos ).
+                                             iv_opt_cwidth  = iv_opt_cwidth ).
   ENDMETHOD.                    "zif_ca_log~get_display_profile
 
 
@@ -1802,10 +1832,6 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
     "-----------------------------------------------------------------*
     "   Save messages into BAL DBs and corresponding informations
     "-----------------------------------------------------------------*
-    "Local data definitions
-    CONSTANTS:
-      c_th_false           TYPE x VALUE 0.
-
     "Is log open/created?
     is_open( ).
 
@@ -1827,7 +1853,7 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
         intern_save_logref( lr_log_number ). "save object references
         intern_save_srcpos( lr_log_number ). "save error positions
 
-        IF cl_system_transaction_state=>get_in_update_task( ) EQ c_th_false AND
+        IF cl_system_transaction_state=>get_in_update_task( ) EQ oscon_version_inactive AND
            iv_commit EQ abap_true.
           COMMIT WORK AND WAIT.
         ENDIF.
@@ -1865,26 +1891,55 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
     "   Set new external number
     "-----------------------------------------------------------------*
     ms_log-extnumber = iv_extnumber.
-
-    "Provide BAL
-    CALL FUNCTION 'BAL_LOG_HDR_CHANGE'
-      EXPORTING
-        i_log_handle            = mv_loghndl
-        i_s_log                 = ms_log
-      EXCEPTIONS
-        log_not_found           = 1
-        log_header_inconsistent = 2
-        OTHERS                  = 3.
-    IF sy-subrc NE 0.
-      DATA(lx_error) =
-            CAST zcx_ca_log(
-                   zcx_ca_intern=>create_exception(
-                                   iv_excp_cls    = zcx_ca_log=>c_zcx_ca_log
-                                   iv_function    = 'BAL_LOG_HDR_CHANGE'
-                                   iv_subrc       = sy-subrc ) )  ##no_text.
-      IF lx_error IS BOUND.
-        RAISE EXCEPTION lx_error.
-      ENDIF.
-    ENDIF.
+    intern_change( is_log     = ms_log
+                   iv_loghndl = mv_loghndl ).
   ENDMETHOD.                    "zif_ca_log~set_ext_number
+
+
+  METHOD zif_ca_log~set_program_name.
+    "-----------------------------------------------------------------*
+    "   Set new external number
+    "-----------------------------------------------------------------*
+    ms_log-alprog = iv_program_name.
+    intern_change( is_log     = ms_log
+                   iv_loghndl = mv_loghndl ).
+  ENDMETHOD.                    "zif_ca_log~set_program_name
+
+
+  METHOD zif_ca_log~set_source_position.
+    "-----------------------------------------------------------------*
+    "   Set source position into buffer
+    "-----------------------------------------------------------------*
+    "only if information exists
+    IF is_srcpos IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    "add to global attribute
+    APPEND VALUE #( msgnumber    = is_msgh-msgnumber
+                    s_exc_srcpos = is_srcpos ) TO mt_srcpos.
+  ENDMETHOD.                    "zif_ca_log~set_source_position
+
+
+  METHOD zif_ca_log~set_transaction_code.
+    "-----------------------------------------------------------------*
+    "   Set new external number
+    "-----------------------------------------------------------------*
+    ms_log-altcode = iv_transaction_code.
+    intern_change( is_log     = ms_log
+                   iv_loghndl = mv_loghndl ).
+  ENDMETHOD.                    "zif_ca_log~set_program_name
+
+
+  METHOD zif_ca_log~write.
+    "-----------------------------------------------------------------*
+    "   Print messages as list without
+    "-----------------------------------------------------------------*
+    mo_log_options->is_message_type_valid( iv_msgty ).
+
+    LOOP AT get_msg_list_bapiret2( iv_msgty ) REFERENCE INTO DATA(lr_msg).
+      WRITE / lr_msg->message.
+    ENDLOOP.
+  ENDMETHOD.                    "zif_ca_log~write
+
 ENDCLASS.

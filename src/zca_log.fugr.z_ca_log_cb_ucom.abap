@@ -1,7 +1,7 @@
 FUNCTION z_ca_log_cb_ucom.
 *"----------------------------------------------------------------------
 *"*"Local Interface:
-*"  IMPORTING
+*"  CHANGING
 *"     REFERENCE(C_S_USER_COMMAND_DATA) TYPE  BAL_S_CBUC
 *"  EXCEPTIONS
 *"      ERROR

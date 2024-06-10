@@ -104,12 +104,22 @@
     <SEOCOMPOTX>
      <CMPNAME>SET_EXT_NUMBER</CMPNAME>
      <LANGU>E</LANGU>
-     <DESCRIPT>Set new external number</DESCRIPT>
+     <DESCRIPT>Set new external number (late, before saving/displaying log)</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SET_PROGRAM_NAME</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Set program name (late, before saving/displaying log)</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>SET_SOURCE_POSITION</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Set source code position to message</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>SET_TRANSACTION_CODE</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Set transaction code (late, before saving/displaying log)</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>WRITE</CMPNAME>
@@ -396,6 +406,12 @@
     </SEOSUBCOTX>
     <SEOSUBCOTX>
      <CMPNAME>GET_PROFILE</CMPNAME>
+     <SCONAME>IV_REPORT</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Program for saving layout variant</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>GET_PROFILE</CMPNAME>
      <SCONAME>IV_SHOW_ALL</SCONAME>
      <LANGU>E</LANGU>
      <DESCRIPT>X = Show all messages</DESCRIPT>
@@ -476,7 +492,13 @@
      <CMPNAME>SET_EXT_NUMBER</CMPNAME>
      <SCONAME>IV_EXTNUMBER</SCONAME>
      <LANGU>E</LANGU>
-     <DESCRIPT>Application Log: External ID</DESCRIPT>
+     <DESCRIPT>External ID (or something else)</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>SET_PROGRAM_NAME</CMPNAME>
+     <SCONAME>IV_PROGRAM_NAME</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Program name (or something else)</DESCRIPT>
     </SEOSUBCOTX>
     <SEOSUBCOTX>
      <CMPNAME>SET_SOURCE_POSITION</CMPNAME>
@@ -489,6 +511,12 @@
      <SCONAME>IS_SRCPOS</SCONAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Common object: Exception position in source code</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>SET_TRANSACTION_CODE</CMPNAME>
+     <SCONAME>IV_TRANSACTION_CODE</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Transaction code (or something else)</DESCRIPT>
     </SEOSUBCOTX>
     <SEOSUBCOTX>
      <CMPNAME>WRITE</CMPNAME>

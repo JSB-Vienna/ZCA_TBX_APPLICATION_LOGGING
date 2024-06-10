@@ -6,6 +6,30 @@ INTERFACE zif_ca_log PUBLIC.
     "! <p class="shorttext synchronized" lang="en">Constants and value checks for application log</p>
     mo_log_options          TYPE REF TO zcl_ca_c_log READ-ONLY.
 
+*   s t a t i c   m e t h o d s
+  CLASS-METHODS:
+    "! <p class="shorttext synchronized" lang="en">Get prepared display profile</p>
+    "!
+    "! @parameter iv_title       | <p class="shorttext synchronized" lang="en">Application Log: Dynpro Title</p>
+    "! @parameter iv_popup       | <p class="shorttext synchronized" lang="en">X = Display as popup</p>
+    "! @parameter iv_use_grid    | <p class="shorttext synchronized" lang="en">X = Display as grid</p>
+    "! @parameter iv_report      | <p class="shorttext synchronized" lang="en">Program for saving layout variant</p>
+    "! @parameter iv_show_all    | <p class="shorttext synchronized" lang="en">X = Show all messages</p>
+    "! @parameter iv_opt_cwidth  | <p class="shorttext synchronized" lang="en">X = Optimize column width</p>
+    "! @parameter iv_disp_srcpos | <p class="shorttext synchronized" lang="en">X = Display source code position of exception</p>
+    "! @parameter result         | <p class="shorttext synchronized" lang="en">Application Log: Log Output Format Profile</p>
+    get_profile
+      IMPORTING
+        iv_title       TYPE baltitle  OPTIONAL
+        iv_popup       TYPE abap_bool DEFAULT abap_false
+        iv_use_grid    TYPE abap_bool DEFAULT abap_true
+        iv_report      TYPE syrepid   DEFAULT sy-cprog
+        iv_show_all    TYPE abap_bool DEFAULT abap_false
+        iv_opt_cwidth  TYPE abap_bool DEFAULT abap_true
+        iv_disp_srcpos TYPE abap_bool DEFAULT abap_false
+      RETURNING
+        VALUE(result)  TYPE bal_s_prof.
+
 * i n s t a n c e   m e t h o d s
   METHODS:
     "! <p class="shorttext synchronized" lang="en">Add single message using message variables</p>
@@ -160,26 +184,6 @@ INTERFACE zif_ca_log PUBLIC.
       RETURNING
         VALUE(rt_data) TYPE bapiret2_t,
 
-    "! <p class="shorttext synchronized" lang="en">Get prepared display profile</p>
-    "!
-    "! @parameter iv_use_grid    | <p class="shorttext synchronized" lang="en">X = Display as grid</p>
-    "! @parameter iv_title       | <p class="shorttext synchronized" lang="en">Application Log: Dynpro Title</p>
-    "! @parameter iv_popup       | <p class="shorttext synchronized" lang="en">X = Display as popup</p>
-    "! @parameter iv_disp_srcpos | <p class="shorttext synchronized" lang="en">X = Display source code position of exception</p>
-    "! @parameter iv_opt_cwidth  | <p class="shorttext synchronized" lang="en">X = Optimize column width</p>
-    "! @parameter iv_show_all    | <p class="shorttext synchronized" lang="en">X = Show all messages</p>
-    "! @parameter result         | <p class="shorttext synchronized" lang="en">Application Log: Log Output Format Profile</p>
-    get_profile
-      IMPORTING
-        iv_use_grid    TYPE abap_bool DEFAULT abap_true
-        iv_title       TYPE baltitle  OPTIONAL
-        iv_popup       TYPE abap_bool DEFAULT abap_false
-        iv_disp_srcpos TYPE abap_bool DEFAULT abap_false
-        iv_opt_cwidth  TYPE abap_bool DEFAULT abap_true
-        iv_show_all    TYPE abap_bool DEFAULT abap_false
-      RETURNING
-        VALUE(result)  TYPE bal_s_prof,
-
     "! <p class="shorttext synchronized" lang="en">Delete instance from buffer (closes log)</p>
     "!
     "! @parameter iv_save        | <p class="shorttext synchronized" lang="en">X = Save log</p>
@@ -206,13 +210,6 @@ INTERFACE zif_ca_log PUBLIC.
       RETURNING
         VALUE(rv_lognumber) TYPE balognr,
 
-    "! <p class="shorttext synchronized" lang="en">Set new external number</p>
-    "!
-    "! @parameter iv_extnumber | <p class="shorttext synchronized" lang="en">Application Log: External ID</p>
-    set_ext_number
-      IMPORTING
-        iv_extnumber TYPE balnrext,
-
     "! <p class="shorttext synchronized" lang="en">Set additional reference object id</p>
     "!
     "! <p>Provide another business object key (= LS_LPOR) to find log entries to different objects. E. g. the
@@ -228,6 +225,20 @@ INTERFACE zif_ca_log PUBLIC.
         is_lpor    TYPE sibflporb
         iv_add_key TYPE zca_d_log_add_key OPTIONAL,
 
+    "! <p class="shorttext synchronized" lang="en">Set new external number (late, before saving/displaying log)</p>
+    "!
+    "! @parameter iv_extnumber | <p class="shorttext synchronized" lang="en">External ID (or something else)</p>
+    set_ext_number
+      IMPORTING
+        iv_extnumber TYPE balnrext,
+
+    "! <p class="shorttext synchronized" lang="en">Set program name (late, before saving/displaying log)</p>
+    "!
+    "! @parameter iv_program_name | <p class="shorttext synchronized" lang="en">Program name (or something else)</p>
+    set_program_name
+      IMPORTING
+        iv_program_name TYPE balprog,
+
     "! <p class="shorttext synchronized" lang="en">Set source code position to message</p>
     "!
     "! @parameter is_msgh   | <p class="shorttext synchronized" lang="en">Application Log: Message handle</p>
@@ -236,6 +247,13 @@ INTERFACE zif_ca_log PUBLIC.
       IMPORTING
         is_msgh   TYPE balmsghndl
         is_srcpos TYPE zca_s_excep_srcpos,
+
+    "! <p class="shorttext synchronized" lang="en">Set transaction code (late, before saving/displaying log)</p>
+    "!
+    "! @parameter iv_transaction_code | <p class="shorttext synchronized" lang="en">Transaction code (or something else)</p>
+    set_transaction_code
+      IMPORTING
+        iv_transaction_code TYPE baltcode,
 
     "! <p class="shorttext synchronized" lang="en">Write all messages (use of WRITE command)</p>
     "!

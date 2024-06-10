@@ -34,18 +34,19 @@ CLASS lcl_ucomm_handler IMPLEMENTATION.
         SELECT SINGLE * INTO  ls_srcpos
                         FROM  zca_log_srcpos
                         WHERE lognr EQ ls_balhdr-lognumber. "#EC CI_NOORDER
-        IF sy-subrc NE 0.
-          "Insufficient data to display source position
-          RAISE EXCEPTION TYPE zcx_ca_log
-            EXPORTING
-              textid = zcx_ca_log=>insufficient_data_for_src_pos.
-        ENDIF.
+      ENDIF.
+
+      IF ls_srcpos IS NOT INITIAL.
+        "Set source position data into buffer
+        INSERT ls_srcpos INTO TABLE gt_srcpos.
       ENDIF.
     ENDIF.
 
-    "Set source position data into buffer
-    IF ls_srcpos IS NOT INITIAL.
-      INSERT ls_srcpos INTO TABLE gt_srcpos.
+    IF ls_srcpos IS INITIAL.
+      "Insufficient data to display source position
+      RAISE EXCEPTION TYPE zcx_ca_log
+        EXPORTING
+          textid = zcx_ca_log=>insufficient_data_for_src_pos.
     ENDIF.
 
     "Display source code - needs only the technical informations

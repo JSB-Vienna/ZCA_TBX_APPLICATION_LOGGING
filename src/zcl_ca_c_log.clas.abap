@@ -101,13 +101,10 @@ CLASS zcl_ca_c_log DEFINITION PUBLIC
       "!
       "! @parameter value      | <p class="shorttext synchronized" lang="en">Value under test</p>
       "! @parameter param_name | <p class="shorttext synchronized" lang="en">Name of field/parameter for output in error message</p>
-      "! @raising   zcx_ca_log | <p class="shorttext synchronized" lang="en">Common exception: File handling errors</p>
       check_against_fixed_values
         IMPORTING
           value      TYPE simple
-          param_name TYPE csequence
-        RAISING
-          zcx_ca_log.
+          param_name TYPE csequence.
 
 
 * P R I V A T E   S E C T I O N
@@ -122,8 +119,7 @@ ENDCLASS.
 
 
 
-CLASS ZCL_CA_C_LOG IMPLEMENTATION.
-
+CLASS zcl_ca_c_log IMPLEMENTATION.
 
   METHOD check_against_fixed_values.
     "-----------------------------------------------------------------*
@@ -159,22 +155,6 @@ CLASS ZCL_CA_C_LOG IMPLEMENTATION.
   ENDMETHOD.                    "get_instance
 
 
-  METHOD is_message_type_valid.
-    "-----------------------------------------------------------------*
-    "   Valid message type passed?
-    "-----------------------------------------------------------------*
-    IF message_type CN 'AEISWX' ##no_text.
-      "Parameter '&1' has invalid value '&2'
-      RAISE EXCEPTION TYPE zcx_ca_log
-        EXPORTING
-          textid   = zcx_ca_log=>param_invalid
-          mv_msgty = 'E'
-          mv_msgv1 = 'MESSAGE_TYPE'
-          mv_msgv2 = CONV #( message_type ) ##no_text.
-    ENDIF.
-  ENDMETHOD.                    "is_message_type_valid
-
-
   METHOD is_object_category_valid.
     "-----------------------------------------------------------------*
     "   Valid object category passed?
@@ -192,13 +172,20 @@ CLASS ZCL_CA_C_LOG IMPLEMENTATION.
   ENDMETHOD.                    "is_object_category_valid
 
 
-  METHOD is_operating_mode_valid.
+  METHOD is_message_type_valid.
     "-----------------------------------------------------------------*
-    "   Valid operating mode passed?
+    "   Valid message type passed?
     "-----------------------------------------------------------------*
-    check_against_fixed_values( value      = operating_mode
-                                param_name = 'OPERATING_MODE' ) ##no_text.
-  ENDMETHOD.                    "is_operating_mode_valid
+    IF message_type CN 'AEISWX' ##no_text.
+      "Parameter '&1' has invalid value '&2'
+      RAISE EXCEPTION TYPE zcx_ca_log
+        EXPORTING
+          textid   = zcx_ca_log=>param_invalid
+          mv_msgty = 'E'
+          mv_msgv1 = 'MESSAGE_TYPE'
+          mv_msgv2 = CONV #( message_type ) ##no_text.
+    ENDIF.
+  ENDMETHOD.                    "is_message_type_valid
 
 
   METHOD is_problem_class_valid.
@@ -208,4 +195,14 @@ CLASS ZCL_CA_C_LOG IMPLEMENTATION.
     check_against_fixed_values( value      = problem_class
                                 param_name = 'PROBLEM_CLASS' ) ##no_text.
   ENDMETHOD.                    "is_problem_class_valid
+
+
+  METHOD is_operating_mode_valid.
+    "-----------------------------------------------------------------*
+    "   Valid operating mode passed?
+    "-----------------------------------------------------------------*
+    check_against_fixed_values( value      = operating_mode
+                                param_name = 'OPERATING_MODE' ) ##no_text.
+  ENDMETHOD.                    "is_operating_mode_valid
+
 ENDCLASS.
