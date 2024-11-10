@@ -1,4 +1,4 @@
-FUNCTION Z_CA_LOG_CB_READ.
+FUNCTION z_ca_log_cb_read.
 *"----------------------------------------------------------------------
 *"*"Local Interface:
 *"  IMPORTING

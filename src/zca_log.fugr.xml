@@ -12,7 +12,7 @@
    <FUNCTIONS>
     <item>
      <FUNCNAME>Z_CA_LOG_CB_READ</FUNCNAME>
-     <SHORT_TEXT>Common object: Appl. log call back (user exit) handling user commands</SHORT_TEXT>
+     <SHORT_TEXT>CA-TBX: Appl. log call back (user exit) handling user commands</SHORT_TEXT>
      <IMPORT>
       <RSIMP>
        <PARAMETER>I_S_INFO</PARAMETER>
@@ -67,7 +67,7 @@
     </item>
     <item>
      <FUNCNAME>Z_CA_LOG_CB_SET_SRCPOS</FUNCNAME>
-     <SHORT_TEXT>Common object: Appl. log call back (user exit) to pass source positions</SHORT_TEXT>
+     <SHORT_TEXT>CA-TBX: Appl. log call back (user exit) to pass source positions</SHORT_TEXT>
      <IMPORT>
       <RSIMP>
        <PARAMETER>IT_SRCPOS</PARAMETER>
@@ -84,7 +84,7 @@
     </item>
     <item>
      <FUNCNAME>Z_CA_LOG_CB_UCOM</FUNCNAME>
-     <SHORT_TEXT>Common object: Appl. log call back (user exit) for read</SHORT_TEXT>
+     <SHORT_TEXT>CA-TBX: Appl. log call back (user exit) for read</SHORT_TEXT>
      <CHANGING>
       <RSCHA>
        <PARAMETER>C_S_USER_COMMAND_DATA</PARAMETER>
@@ -110,6 +110,16 @@
      </DOCUMENTATION>
     </item>
    </FUNCTIONS>
+   <I18N_TPOOL>
+    <item>
+     <LANGUAGE>E</LANGUAGE>
+     <TEXTPOOL>
+      <item>
+       <ID>R</ID>
+      </item>
+     </TEXTPOOL>
+    </item>
+   </I18N_TPOOL>
   </asx:values>
  </asx:abap>
 </abapGit>

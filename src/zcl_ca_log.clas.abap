@@ -133,7 +133,7 @@ CLASS zcl_ca_log DEFINITION PUBLIC
       "! @parameter iv_del_before    | <p class="shorttext synchronized" lang="en">Application Log: Keep log until expiry</p>
       "! @parameter iv_del_date      | <p class="shorttext synchronized" lang="en">Application Log: Expiration Date</p>
       "! @parameter iv_log_cls_name  | <p class="shorttext synchronized" lang="en">Name of (inherited) application log class</p>
-      "! @parameter ro_log           | <p class="shorttext synchronized" lang="en">Common object: Application log (BAL)</p>
+      "! @parameter ro_log           | <p class="shorttext synchronized" lang="en">CA-TBX: Application log (BAL)</p>
       get_instance
         IMPORTING
           iv_object        TYPE balobj_d
@@ -159,7 +159,7 @@ CLASS zcl_ca_log DEFINITION PUBLIC
       "! @parameter iv_repid     | <p class="shorttext synchronized" lang="en">ABAP Program: Current Main Program</p>
       "! @parameter iv_tcode     | <p class="shorttext synchronized" lang="en">ABAP System Field: Current Transaction Code</p>
       "! @parameter iv_mode      | <p class="shorttext synchronized" lang="en">Application Log: Operating mode  (use const. C_MODE_*)</p>
-      "! @parameter ro_log       | <p class="shorttext synchronized" lang="en">Common object: Application log (BAL)</p>
+      "! @parameter ro_log       | <p class="shorttext synchronized" lang="en">CA-TBX: Application log (BAL)</p>
       get_instance_to_log_handle
         IMPORTING
           iv_loghandle    TYPE balloghndl
@@ -257,9 +257,9 @@ CLASS zcl_ca_log DEFINITION PUBLIC
       mo_sel_options   TYPE REF TO zcl_ca_c_sel_options,
 
 *     t a b l e s
-      "! <p class="shorttext synchronized" lang="en">Common object: Application log - Business object reference</p>
+      "! <p class="shorttext synchronized" lang="en">CA-TBX: Application log - Business object reference</p>
       mt_objref        TYPE zca_tt_log_objref,
-      "! <p class="shorttext synchronized" lang="en">Common object: Application log - Source code position</p>
+      "! <p class="shorttext synchronized" lang="en">CA-TBX: Application log - Source code position</p>
       mt_srcpos        TYPE zca_tt_log_srcpos,
 
 *     s t r u c t u r e s
@@ -317,7 +317,7 @@ CLASS zcl_ca_log DEFINITION PUBLIC
       "! @parameter is_prof   | <p class="shorttext synchronized" lang="en">Application Log: Log Output Format Profile</p>
       "! @parameter it_logh   | <p class="shorttext synchronized" lang="en">Application Log: Log Handle Table</p>
       "! @parameter it_msgh   | <p class="shorttext synchronized" lang="en">Application Log: Message Handle Table</p>
-      "! @parameter it_srcpos | <p class="shorttext synchronized" lang="en">Common object: Application log - Source code position</p>
+      "! @parameter it_srcpos | <p class="shorttext synchronized" lang="en">CA-TBX: Application log - Source code position</p>
       intern_display
         IMPORTING
           io_parent TYPE REF TO cl_gui_container OPTIONAL
@@ -375,7 +375,7 @@ CLASS zcl_ca_log DEFINITION PUBLIC
       "! @parameter it_lhdr   | <p class="shorttext synchronized" lang="en">Application Log: Log header data table</p>
       "! @parameter et_logh   | <p class="shorttext synchronized" lang="en">Application Log: Log Handle Table</p>
       "! @parameter et_msgh   | <p class="shorttext synchronized" lang="en">Application Log: Message Handle Table</p>
-      "! @parameter et_srcpos | <p class="shorttext synchronized" lang="en">Common object: Application log - Source code position</p>
+      "! @parameter et_srcpos | <p class="shorttext synchronized" lang="en">CA-TBX: Application log - Source code position</p>
       intern_load
         IMPORTING
           it_lhdr   TYPE balhdr_t
@@ -387,7 +387,7 @@ CLASS zcl_ca_log DEFINITION PUBLIC
       "! <p class="shorttext synchronized" lang="en">Load messages and source code positions to exceptions</p>
       "!
       "! @parameter it_msgh   | <p class="shorttext synchronized" lang="en">Application Log: Message Handle Table</p>
-      "! @parameter rt_srcpos | <p class="shorttext synchronized" lang="en">Common object: Application log - Source code position</p>
+      "! @parameter rt_srcpos | <p class="shorttext synchronized" lang="en">CA-TBX: Application log - Source code position</p>
       intern_load_pos
         IMPORTING
           it_msgh          TYPE bal_t_msgh
@@ -537,7 +537,8 @@ ENDCLASS.
 
 
 
-CLASS zcl_ca_log IMPLEMENTATION.
+CLASS ZCL_CA_LOG IMPLEMENTATION.
+
 
   METHOD constructor.
     "-----------------------------------------------------------------*
@@ -1941,5 +1942,4 @@ CLASS zcl_ca_log IMPLEMENTATION.
       WRITE / lr_msg->message.
     ENDLOOP.
   ENDMETHOD.                    "zif_ca_log~write
-
 ENDCLASS.

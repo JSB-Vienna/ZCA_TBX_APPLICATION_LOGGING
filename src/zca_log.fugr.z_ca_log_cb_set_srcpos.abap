@@ -1,4 +1,4 @@
-FUNCTION Z_CA_LOG_CB_SET_SRCPOS.
+FUNCTION z_ca_log_cb_set_srcpos.
 *"----------------------------------------------------------------------
 *"*"Local Interface:
 *"  IMPORTING

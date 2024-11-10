@@ -43,7 +43,7 @@ INTERFACE zif_ca_log PUBLIC.
     "! @parameter iv_msgv4     | <p class="shorttext synchronized" lang="en">Message variable 4</p>
     "! @parameter iv_probclass | <p class="shorttext synchronized" lang="en">Application log: Message problem class</p>
     "! @parameter iv_detlevel  | <p class="shorttext synchronized" lang="en">Application Log: Level of detail</p>
-    "! @parameter is_srcpos    | <p class="shorttext synchronized" lang="en">Common object: Exception position in source code</p>
+    "! @parameter is_srcpos    | <p class="shorttext synchronized" lang="en">CA-TBX: Exception position in source code</p>
     add_msg
       IMPORTING
         iv_msgty     TYPE syst_msgty DEFAULT zcl_ca_c_log=>msg_type-error
@@ -60,7 +60,7 @@ INTERFACE zif_ca_log PUBLIC.
     "! <p class="shorttext synchronized" lang="en">Add message from structure BAL_S_MSG</p>
     "!
     "! @parameter is_msg    | <p class="shorttext synchronized" lang="en">Application Log: Message Data</p>
-    "! @parameter is_srcpos | <p class="shorttext synchronized" lang="en">Common object: Exception position in source code</p>
+    "! @parameter is_srcpos | <p class="shorttext synchronized" lang="en">CA-TBX: Exception position in source code</p>
     add_msg_bal
       IMPORTING
         is_msg    TYPE bal_s_msg
@@ -78,7 +78,7 @@ INTERFACE zif_ca_log PUBLIC.
     "! @parameter is_bapiret2  | <p class="shorttext synchronized" lang="en">Return Parameter</p>
     "! @parameter iv_probclass | <p class="shorttext synchronized" lang="en">Application log: Message problem class</p>
     "! @parameter iv_detlevel  | <p class="shorttext synchronized" lang="en">Application Log: Level of detail</p>
-    "! @parameter is_srcpos    | <p class="shorttext synchronized" lang="en">Common object: Exception position in source code</p>
+    "! @parameter is_srcpos    | <p class="shorttext synchronized" lang="en">CA-TBX: Exception position in source code</p>
     add_msg_bapiret2
       IMPORTING
         is_bapiret2  TYPE bapiret2
@@ -91,7 +91,7 @@ INTERFACE zif_ca_log PUBLIC.
     "! @parameter it_bapiret2  | <p class="shorttext synchronized" lang="en">Return table</p>
     "! @parameter iv_probclass | <p class="shorttext synchronized" lang="en">Application log: Message problem class</p>
     "! @parameter iv_detlevel  | <p class="shorttext synchronized" lang="en">Application Log: Level of detail</p>
-    "! @parameter is_srcpos    | <p class="shorttext synchronized" lang="en">Common object: Exception position in source code</p>
+    "! @parameter is_srcpos    | <p class="shorttext synchronized" lang="en">CA-TBX: Exception position in source code</p>
     add_msg_bapiret2_tab
       IMPORTING
         it_bapiret2  TYPE bapiret2_t
@@ -116,7 +116,7 @@ INTERFACE zif_ca_log PUBLIC.
     "!
     "! @parameter iv_probclass | <p class="shorttext synchronized" lang="en">Application log: Message problem class</p>
     "! @parameter iv_detlevel  | <p class="shorttext synchronized" lang="en">Application Log: Level of detail</p>
-    "! @parameter is_srcpos    | <p class="shorttext synchronized" lang="en">Common object: Exception position in source code</p>
+    "! @parameter is_srcpos    | <p class="shorttext synchronized" lang="en">CA-TBX: Exception position in source code</p>
     add_msg_syst
       IMPORTING
         iv_probclass TYPE balprobcl OPTIONAL
@@ -242,7 +242,7 @@ INTERFACE zif_ca_log PUBLIC.
     "! <p class="shorttext synchronized" lang="en">Set source code position to message</p>
     "!
     "! @parameter is_msgh   | <p class="shorttext synchronized" lang="en">Application Log: Message handle</p>
-    "! @parameter is_srcpos | <p class="shorttext synchronized" lang="en">Common object: Exception position in source code</p>
+    "! @parameter is_srcpos | <p class="shorttext synchronized" lang="en">CA-TBX: Exception position in source code</p>
     set_source_position
       IMPORTING
         is_msgh   TYPE balmsghndl
