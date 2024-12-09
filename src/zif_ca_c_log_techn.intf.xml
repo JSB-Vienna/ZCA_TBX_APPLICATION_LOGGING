@@ -12,7 +12,11 @@
    </VSEOINTERF>
    <DESCRIPTIONS_INTERFACE>
     <SEOCLASSTX>
+<<<<<<< Updated upstream
      <LANGU>E</LANGU>
+=======
+     <LANGU>D</LANGU>
+>>>>>>> Stashed changes
      <DESCRIPT>CA-TBX: Technical constants for application log</DESCRIPT>
     </SEOCLASSTX>
    </DESCRIPTIONS_INTERFACE>

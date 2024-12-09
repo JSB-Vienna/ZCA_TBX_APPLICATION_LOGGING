@@ -14,7 +14,11 @@
    </VSEOCLASS>
    <DESCRIPTIONS_CLASS>
     <SEOCLASSTX>
+<<<<<<< Updated upstream
      <LANGU>E</LANGU>
+=======
+     <LANGU>D</LANGU>
+>>>>>>> Stashed changes
      <DESCRIPT>CA-TBX exception: Application log action failed</DESCRIPT>
     </SEOCLASSTX>
    </DESCRIPTIONS_CLASS>

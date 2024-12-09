@@ -13,7 +13,11 @@
    </VSEOCLASS>
    <DESCRIPTIONS_CLASS>
     <SEOCLASSTX>
+<<<<<<< Updated upstream
      <LANGU>E</LANGU>
+=======
+     <LANGU>D</LANGU>
+>>>>>>> Stashed changes
      <DESCRIPT>CA-TBX: Constants and value checks for application logging</DESCRIPT>
     </SEOCLASSTX>
    </DESCRIPTIONS_CLASS>

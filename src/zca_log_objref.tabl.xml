@@ -64,11 +64,19 @@
     </DD03P>
    </DD03P_TABLE>
    <I18N_LANGS>
+<<<<<<< Updated upstream
     <LANGU>E</LANGU>
    </I18N_LANGS>
    <DD02_TEXTS>
     <item>
      <DDLANGUAGE>E</DDLANGUAGE>
+=======
+    <LANGU>D</LANGU>
+   </I18N_LANGS>
+   <DD02_TEXTS>
+    <item>
+     <DDLANGUAGE>D</DDLANGUAGE>
+>>>>>>> Stashed changes
      <DDTEXT>CA-TBX: Application log - Business object reference</DDTEXT>
     </item>
    </DD02_TEXTS>
