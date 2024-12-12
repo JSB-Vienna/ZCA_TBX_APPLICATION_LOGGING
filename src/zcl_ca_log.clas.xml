@@ -4,7 +4,7 @@
   <asx:values>
    <VSEOCLASS>
     <CLSNAME>ZCL_CA_LOG</CLSNAME>
-    <LANGU>D</LANGU>
+    <LANGU>E</LANGU>
     <DESCRIPT>CA-TBX: Business Application Logging (BAL)</DESCRIPT>
     <STATE>1</STATE>
     <CLSCCINCL>X</CLSCCINCL>
@@ -33,11 +33,7 @@
    </TPOOL>
    <I18N_TPOOL>
     <item>
-<<<<<<< Updated upstream
-     <LANGUAGE>E</LANGUAGE>
-=======
      <LANGUAGE>D</LANGUAGE>
->>>>>>> Stashed changes
      <TEXTPOOL>
       <item>
        <ID>I</ID>
@@ -62,11 +58,7 @@
    </I18N_TPOOL>
    <DESCRIPTIONS_CLASS>
     <SEOCLASSTX>
-<<<<<<< Updated upstream
-     <LANGU>E</LANGU>
-=======
      <LANGU>D</LANGU>
->>>>>>> Stashed changes
      <DESCRIPT>CA-TBX: Business Application Logging (BAL)</DESCRIPT>
     </SEOCLASSTX>
    </DESCRIPTIONS_CLASS>

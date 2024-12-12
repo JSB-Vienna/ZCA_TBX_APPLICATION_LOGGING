@@ -4,7 +4,7 @@
   <asx:values>
    <VSEOINTERF>
     <CLSNAME>ZIF_CA_C_LOG_TECHN</CLSNAME>
-    <LANGU>D</LANGU>
+    <LANGU>E</LANGU>
     <DESCRIPT>CA-TBX: Technical constants for application log</DESCRIPT>
     <EXPOSURE>2</EXPOSURE>
     <STATE>1</STATE>
@@ -12,11 +12,7 @@
    </VSEOINTERF>
    <DESCRIPTIONS_INTERFACE>
     <SEOCLASSTX>
-<<<<<<< Updated upstream
-     <LANGU>E</LANGU>
-=======
      <LANGU>D</LANGU>
->>>>>>> Stashed changes
      <DESCRIPT>CA-TBX: Technical constants for application log</DESCRIPT>
     </SEOCLASSTX>
    </DESCRIPTIONS_INTERFACE>

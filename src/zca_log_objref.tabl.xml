@@ -4,7 +4,7 @@
   <asx:values>
    <DD02V>
     <TABNAME>ZCA_LOG_OBJREF</TABNAME>
-    <DDLANGUAGE>D</DDLANGUAGE>
+    <DDLANGUAGE>E</DDLANGUAGE>
     <TABCLASS>TRANSP</TABCLASS>
     <CLIDEP>X</CLIDEP>
     <LANGDEP>X</LANGDEP>
@@ -36,7 +36,7 @@
      <PRECFIELD>SIBFLPORB</PRECFIELD>
      <NOTNULL>X</NOTNULL>
      <MASK>      S</MASK>
-     <DDTEXT>Lokale Persistente Objektreferenz - BOR kompatibel</DDTEXT>
+     <DDTEXT>Local Persistent Object Reference - BOR Compatible</DDTEXT>
      <COMPTYPE>S</COMPTYPE>
      <GROUPNAME>S_LPOR</GROUPNAME>
     </DD03P>
@@ -64,19 +64,11 @@
     </DD03P>
    </DD03P_TABLE>
    <I18N_LANGS>
-<<<<<<< Updated upstream
-    <LANGU>E</LANGU>
-   </I18N_LANGS>
-   <DD02_TEXTS>
-    <item>
-     <DDLANGUAGE>E</DDLANGUAGE>
-=======
     <LANGU>D</LANGU>
    </I18N_LANGS>
    <DD02_TEXTS>
     <item>
      <DDLANGUAGE>D</DDLANGUAGE>
->>>>>>> Stashed changes
      <DDTEXT>CA-TBX: Application log - Business object reference</DDTEXT>
     </item>
    </DD02_TEXTS>

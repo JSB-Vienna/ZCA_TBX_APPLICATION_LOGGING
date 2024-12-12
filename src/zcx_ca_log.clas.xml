@@ -4,7 +4,7 @@
   <asx:values>
    <VSEOCLASS>
     <CLSNAME>ZCX_CA_LOG</CLSNAME>
-    <LANGU>D</LANGU>
+    <LANGU>E</LANGU>
     <DESCRIPT>CA-TBX exception: Application log action failed</DESCRIPT>
     <CATEGORY>40</CATEGORY>
     <STATE>1</STATE>
@@ -14,11 +14,7 @@
    </VSEOCLASS>
    <DESCRIPTIONS_CLASS>
     <SEOCLASSTX>
-<<<<<<< Updated upstream
-     <LANGU>E</LANGU>
-=======
      <LANGU>D</LANGU>
->>>>>>> Stashed changes
      <DESCRIPT>CA-TBX exception: Application log action failed</DESCRIPT>
     </SEOCLASSTX>
    </DESCRIPTIONS_CLASS>

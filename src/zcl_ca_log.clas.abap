@@ -1942,4 +1942,5 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
       WRITE / lr_msg->message.
     ENDLOOP.
   ENDMETHOD.                    "zif_ca_log~write
+
 ENDCLASS.
