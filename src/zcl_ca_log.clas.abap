@@ -420,6 +420,7 @@ CLASS zcl_ca_log DEFINITION PUBLIC
         IMPORTING
           it_logh               TYPE bal_t_logh
           iv_in_upd_task        TYPE abap_bool DEFAULT abap_false
+          i_2th_connection      TYPE abap_bool
         RETURNING
           VALUE(rt_log_numbers) TYPE bal_t_lgnm,
 
@@ -537,7 +538,7 @@ ENDCLASS.
 
 
 
-CLASS ZCL_CA_LOG IMPLEMENTATION.
+CLASS zcl_ca_log IMPLEMENTATION.
 
 
   METHOD constructor.
@@ -813,10 +814,10 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
     DATA(lt_log_headers) = intern_search( is_lfil = intern_get_log_list_to_ref_obj( is_lpor    = is_lpor
                                                                                     iv_add_key = iv_add_key ) ).
     intern_load(
-            EXPORTING
-              it_lhdr = lt_log_headers
-            IMPORTING
-              et_msgh = DATA(lt_msg_handles) ).
+      EXPORTING
+        it_lhdr = lt_log_headers
+      IMPORTING
+        et_msgh = DATA(lt_msg_handles) ).
 
     LOOP AT lt_msg_handles REFERENCE INTO DATA(lr_msg_handle).
       APPEND zcl_ca_log=>intern_msg_read( lr_msg_handle->* ) TO result.
@@ -1056,9 +1057,9 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
 
     DATA(lo_sel_opt) = zcl_ca_c_sel_options=>get_instance( ).
     result-lognumber = VALUE #( FOR ls_obj_ref_logno IN lt_obj_refs
-                                              ( sign   = lo_sel_opt->sign-incl
-                                                option = lo_sel_opt->option-eq
-                                                low    = ls_obj_ref_logno-lognr ) ).
+                                ( sign   = lo_sel_opt->sign-incl
+                                  option = lo_sel_opt->option-eq
+                                  low    = ls_obj_ref_logno-lognr ) ).
     SORT result-lognumber.
     DELETE ADJACENT DUPLICATES FROM result-lognumber COMPARING ALL FIELDS.
   ENDMETHOD.                    "intern_get_log_list_to_ref_obj
@@ -1258,15 +1259,17 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
     "-----------------------------------------------------------------*
     CALL FUNCTION 'BAL_DB_SAVE'
       EXPORTING
-        i_in_update_task = iv_in_upd_task
-        i_t_log_handle   = it_logh
+        i_in_update_task     = iv_in_upd_task
+        i_t_log_handle       = it_logh
+        i_2th_connection     = i_2th_connection
+        i_2th_connect_commit = i_2th_connection
       IMPORTING
-        e_new_lognumbers = rt_log_numbers
+        e_new_lognumbers     = rt_log_numbers
       EXCEPTIONS
-        log_not_found    = 1
-        save_not_allowed = 2
-        numbering_error  = 3
-        OTHERS           = 4.
+        log_not_found        = 1
+        save_not_allowed     = 2
+        numbering_error      = 3
+        OTHERS               = 4.
     IF sy-subrc NE 0.
       DATA(lx_error) = CAST zcx_ca_log( zcx_ca_intern=>create_exception(
                                                                iv_excp_cls = zcx_ca_log=>c_zcx_ca_log
@@ -1375,12 +1378,12 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
 
     "Load BAL messages
     zcl_ca_log=>intern_load(
-                        EXPORTING
-                          it_lhdr   = lt_lhdr
-                        IMPORTING
-                          et_logh   = DATA(lt_logh)
-                          et_msgh   = DATA(lt_msgh)
-                          et_srcpos = DATA(lt_srcpos) ).
+      EXPORTING
+        it_lhdr   = lt_lhdr
+      IMPORTING
+        et_logh   = DATA(lt_logh)
+        et_msgh   = DATA(lt_msgh)
+        et_srcpos = DATA(lt_srcpos) ).
 
     "Provide display profile
     IF is_profile IS NOT INITIAL.
@@ -1561,6 +1564,23 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
   ENDMETHOD.                    "zif_ca_log~add_msg_bapiret2_tab
 
 
+  METHOD zif_ca_log~add_msg_dyn.
+    "-----------------------------------------------------------------*
+    "   Add message from RAP exception
+    "-----------------------------------------------------------------*
+    add_msg( iv_msgid     = io_msg->if_t100_message~t100key-msgid
+             iv_msgty     = io_msg->msgty
+             iv_msgno     = io_msg->if_t100_message~t100key-msgno
+             iv_msgv1     = io_msg->msgv1
+             iv_msgv2     = io_msg->msgv2
+             iv_msgv3     = io_msg->msgv3
+             iv_msgv4     = io_msg->msgv4
+             iv_probclass = iv_probclass
+             iv_detlevel  = iv_detlevel
+             is_srcpos    = is_srcpos ).
+  ENDMETHOD.                    "zif_ca_log~add_msg_dyn
+
+
   METHOD zif_ca_log~add_msg_exc.
     "-----------------------------------------------------------------*
     "   Add message from exception class
@@ -1659,7 +1679,7 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
              iv_msgv4     = sy-msgv4
              iv_probclass = iv_probclass
              iv_detlevel  = iv_detlevel
-             is_srcpos    = is_srcpos  ).
+             is_srcpos    = is_srcpos ).
   ENDMETHOD.                    "zif_ca_log~add_msg_sy
 
 
@@ -1744,11 +1764,11 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
         i_t_log_handle = VALUE bal_t_logh( ( mv_loghndl ) )
         i_s_msg_filter = VALUE bal_s_mfil(
                                   msgty = COND #(
-                                            WHEN iv_msgty IS INITIAL
-                                              THEN VALUE #( )  "initial filter
-                                              ELSE VALUE #( ( sign   = lo_sel_options->sign-incl
-                                                              option = lo_sel_options->option-eq
-                                                              low    = iv_msgty ) ) ) )
+                                  WHEN iv_msgty IS INITIAL
+                                  THEN VALUE #( )              "initial filter
+                                  ELSE VALUE #( ( sign   = lo_sel_options->sign-incl
+                                                  option = lo_sel_options->option-eq
+                                                  low    = iv_msgty ) ) ) )
       IMPORTING
         e_t_msg_handle = lt_msgh
       EXCEPTIONS
@@ -1839,8 +1859,9 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
     IF iv_no_empty      EQ abap_false OR   "quantity of msg entries doesn't matter
        get_msg_count( ) GT 0.              "OR minimum 1 message exists
       "save log
-      DATA(lt_log_numbers) = zcl_ca_log=>intern_save( it_logh        = VALUE #( ( mv_loghndl ) )
-                                                      iv_in_upd_task = iv_in_upd_task ).
+      DATA(lt_log_numbers) = zcl_ca_log=>intern_save( it_logh          = VALUE #( ( mv_loghndl ) )
+                                                      iv_in_upd_task   = iv_in_upd_task
+                                                      i_2th_connection = use_2nd_db_connection ).
 
       DATA(lr_log_number) = REF #( lt_log_numbers[ log_handle = mv_loghndl ] OPTIONAL ). "#EC CI_SORTSEQ
 
@@ -1854,7 +1875,9 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
         intern_save_logref( lr_log_number ). "save object references
         intern_save_srcpos( lr_log_number ). "save error positions
 
-        IF cl_system_transaction_state=>get_in_update_task( ) EQ oscon_version_inactive AND
+        "Keep the order of this condition - is important for the right decision
+        IF NOT zcl_ca_utils=>is_save_phase_of_rap_active( )                             AND
+           cl_system_transaction_state=>get_in_update_task( ) EQ oscon_version_inactive AND
            iv_commit EQ abap_true.
           COMMIT WORK AND WAIT.
         ENDIF.
@@ -1936,7 +1959,9 @@ CLASS ZCL_CA_LOG IMPLEMENTATION.
     "-----------------------------------------------------------------*
     "   Print messages as list without
     "-----------------------------------------------------------------*
-    mo_log_options->is_message_type_valid( iv_msgty ).
+    IF iv_msgty IS NOT INITIAL.
+      mo_log_options->is_message_type_valid( iv_msgty ).
+    ENDIF.
 
     LOOP AT get_msg_list_bapiret2( iv_msgty ) REFERENCE INTO DATA(lr_msg).
       WRITE / lr_msg->message.

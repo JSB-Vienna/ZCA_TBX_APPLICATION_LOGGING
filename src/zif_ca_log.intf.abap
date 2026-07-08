@@ -123,6 +123,19 @@ INTERFACE zif_ca_log PUBLIC.
         iv_detlevel  TYPE ballevel  OPTIONAL
         is_srcpos    TYPE zca_s_excep_srcpos OPTIONAL,
 
+
+    "! <p class="shorttext synchronized" lang="en">Add message from IF_T100_DYN_MSG</p>
+    "!
+    "! @parameter io_msg       | <p class="shorttext synchronized" lang="en">type IF_T100_DYN_MSG</p>
+    "! @parameter iv_probclass | <p class="shorttext synchronized" lang="en">Application log: Message problem class</p>
+    "! @parameter iv_detlevel  | <p class="shorttext synchronized" lang="en">Application Log: Level of detail</p>
+    "! @parameter is_srcpos    | <p class="shorttext synchronized" lang="en">CA-TBX: Exception position in source code</p>
+    add_msg_dyn
+      IMPORTING io_msg       TYPE REF TO if_t100_dyn_msg
+                iv_probclass TYPE balprobcl OPTIONAL
+                iv_detlevel  TYPE ballevel  OPTIONAL
+                is_srcpos    TYPE zca_s_excep_srcpos OPTIONAL,
+
     "! <p class="shorttext synchronized" lang="en">Close log</p>
     close,
 
@@ -199,16 +212,18 @@ INTERFACE zif_ca_log PUBLIC.
     "! @parameter iv_commit      | <p class="shorttext synchronized" lang="en">X = Execute commit work</p>
     "! @parameter iv_in_upd_task | <p class="shorttext synchronized" lang="en">X = Save log in update task</p>
     "! @parameter iv_no_empty    | <p class="shorttext synchronized" lang="en">X = Do not save empty logs</p>
+    "! @parameter use_2nd_db_connection    | <p class="shorttext synchronized" lang="en">X = use second database session</p>
     "! @parameter rv_lognumber   | <p class="shorttext synchronized" lang="en">Application log: log number</p>
     save
       IMPORTING
-        iv_close            TYPE abap_bool DEFAULT abap_true
-        iv_commit           TYPE abap_bool DEFAULT abap_true
-        iv_in_upd_task      TYPE abap_bool DEFAULT abap_false
-        iv_no_empty         TYPE abap_bool DEFAULT abap_true
+        iv_close              TYPE abap_bool DEFAULT abap_true
+        iv_commit             TYPE abap_bool DEFAULT abap_true
+        iv_in_upd_task        TYPE abap_bool DEFAULT abap_false
+        iv_no_empty           TYPE abap_bool DEFAULT abap_true
+        use_2nd_db_connection TYPE abap_bool DEFAULT abap_false
           PREFERRED PARAMETER iv_close
       RETURNING
-        VALUE(rv_lognumber) TYPE balognr,
+        VALUE(rv_lognumber)   TYPE balognr,
 
     "! <p class="shorttext synchronized" lang="en">Set additional reference object id</p>
     "!

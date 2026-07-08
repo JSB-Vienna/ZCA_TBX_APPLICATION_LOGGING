@@ -68,6 +68,11 @@
      <DESCRIPT>Add messages from tabletype BAPIRET2_T</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
+     <CMPNAME>ADD_MSG_DYN</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Add message from IF_T100_DYN_MSG</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
      <CMPNAME>ADD_MSG_EXC</CMPNAME>
      <LANGU>D</LANGU>
      <DESCRIPT>Add message from exception class</DESCRIPT>
@@ -502,6 +507,30 @@
      <DESCRIPT>Application log: Message problem class</DESCRIPT>
     </SEOSUBCOTX>
     <SEOSUBCOTX>
+     <CMPNAME>ADD_MSG_DYN</CMPNAME>
+     <SCONAME>IO_MSG</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>type IF_T100_DYN_MSG</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>ADD_MSG_DYN</CMPNAME>
+     <SCONAME>IS_SRCPOS</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>CA-TBX: Exception position in source code</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>ADD_MSG_DYN</CMPNAME>
+     <SCONAME>IV_DETLEVEL</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Application Log: Level of detail</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>ADD_MSG_DYN</CMPNAME>
+     <SCONAME>IV_PROBCLASS</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Application log: Message problem class</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
      <CMPNAME>ADD_MSG_EXC</CMPNAME>
      <SCONAME>IV_ALL</SCONAME>
      <LANGU>D</LANGU>
@@ -944,6 +973,12 @@
      <SCONAME>RV_LOGNUMBER</SCONAME>
      <LANGU>E</LANGU>
      <DESCRIPT>Application log: log number</DESCRIPT>
+    </SEOSUBCOTX>
+    <SEOSUBCOTX>
+     <CMPNAME>SAVE</CMPNAME>
+     <SCONAME>USE_2ND_DB_CONNECTION</SCONAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>X = use second database session</DESCRIPT>
     </SEOSUBCOTX>
     <SEOSUBCOTX>
      <CMPNAME>SET_ADDITIONAL_REF_OBJECT_ID</CMPNAME>
